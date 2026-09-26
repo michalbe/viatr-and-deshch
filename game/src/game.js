@@ -3,8 +3,8 @@
  * fog of war, the Leshy and the objectives. The rival Rodina's brain is in ai.js.
  */
 import * as THREE from 'three';
-import { UNITS, BUILDINGS, TEAM, START, LAYOUT, WIND_PER_VIETRA, RAIN_PER_ZHERCA, SHRINE_SLOTS, DANCE_RADIUS, INTERRUPT_S, OBJECTIVES, MAP, clamp } from './config.js';
-import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap, unblockCells } from './terrain.js';
+import { UNITS, BUILDINGS, TEAM, START, WIND_PER_VIETRA, RAIN_PER_ZHERCA, SHRINE_SLOTS, DANCE_RADIUS, INTERRUPT_S, OBJECTIVES, MAP, clamp } from './config.js';
+import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap, unblockCells, map } from './terrain.js';
 import { findPath, lineFree, nearestFree } from './path.js';
 import { makeUnitModel, makeBuildingModel } from './models.js';
 import { animate, animateDeath } from './anim.js';
@@ -20,7 +20,7 @@ export class Game {
     this.units = []; this.buildings = []; this.pending = 0;
     this.time = 0;
     this.teams = [0, 1, 2].map(() => ({ wind: START.wind, rain: START.rain, windTotal: 0, rainTotal: 0, trained: {}, lost: 0, kills: 0, lastAlarm: -99 }));
-    this.springs = LAYOUT.springs.map(([x, z], i) => ({ i, x, z, shrine: null, prop: null }));
+    this.springs = (map().springs || []).map(([x, z], i) => ({ i, x, z, shrine: null, prop: null }));
     this.vis = new Uint8Array(G * G); this.seen = new Uint8Array(G * G);
     this.objective = 0; this.objectiveDoneT = 0;
     this.over = null;                  // 'victory' | 'defeat'
@@ -354,7 +354,7 @@ export class Game {
     if (team === TEAM.PLAYER) this.emit('toast', 'The Leshy falls. Its hoard is yours: +150 Wind, +75 Rain. The forest will remember.');
     // the forest answers: its children come out of the trees over the next minutes
     const s = this.units.find((u) => u.ut === 'spirit');
-    const [hx, hz] = s ? s.home : LAYOUT.clearing;
+    const [hx, hz] = s ? s.home : (map().clearing || [0, 0]);
     for (let i = 0; i < 4; i++) { const a = i * 1.6 + 0.5; this.pendingSpawns.push({ ut: 'leshonok', team: TEAM.NEUTRAL, x: hx + Math.cos(a) * 16, z: hz + Math.sin(a) * 16, at: this.time + 25 + i * 30, home: [hx, hz], hunt: true }); }
     this.emit('leshySlain', from);
   }

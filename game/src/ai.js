@@ -2,11 +2,10 @@
  * The Rival Rodina (design doc section 11): gather, train, defend, raid, replace losses.
  * Deliberately simple and readable. Ticks once a second.
  */
-import { TEAM, LAYOUT, UNITS, BUILDINGS } from './config.js';
-import { heightAt } from './terrain.js';
+import { TEAM, UNITS, BUILDINGS } from './config.js';
+import { heightAt, map } from './terrain.js';
 
 const R = TEAM.RIVAL;
-const GAPS = [[41, 41], [-42, -42]];   // the two passages through the forest; the spirit's clearing is avoided
 
 export class RivalAI {
   constructor(game) {
@@ -43,7 +42,7 @@ export class RivalAI {
     // a sacred grove later on
     if (this.t > 360 && !g.aliveB(R, 'grove').length && !this.busy && T.wind >= 150 && T.rain >= 50 && zhercas.length) this.buildNear('grove', zhercas);
     // contest the exposed spring after minute 8
-    const exposed = g.springs[1];
+    const exposed = g.springs[map().exposedSpring ?? 1];
     if (this.t > 480 && !exposed.shrine && !this.busy && T.wind >= 75 && zhercas.length > 1 && !this.expanding) {
       this.expanding = true;
       const z = zhercas.find((z) => z.order?.type === 'rite') || zhercas[0];
@@ -63,7 +62,7 @@ export class RivalAI {
     for (const h of g.aliveB(R, 'grove')) if (h.built && !h.queue.length && military.length < armyCap && Math.random() < 0.5) g.train(h, 'bear');
 
     // defend: anything hit near home pulls the home army
-    const home = LAYOUT.rivalGrod;
+    const home = map().rival.grod;
     const hurt = g.buildings.find((b) => b.team === R && !b.dead && g.time - b.lastHitT < 4 && b.lastHitBy && !b.lastHitBy.dead);
     const hurtU = units.find((u) => u.lastHitBy && !u.lastHitBy.dead && u.lastHitBy.team !== R && Math.hypot(u.x - home[0], u.z - home[1]) < 40);
     const threat = hurt?.lastHitBy || hurtU?.lastHitBy;
@@ -81,7 +80,7 @@ export class RivalAI {
       if (avail.length >= Math.min(size, 3) + (this.waveN === 0 ? 0 : guard)) {
         const team = avail.slice(0, Math.min(size, avail.length - (this.waveN === 0 ? 0 : guard)));
         const target = this.pickTarget();
-        const gap = GAPS[this.waveN % 2];
+        const gaps = map().rival.raidGaps || [map().rival.grod]; const gap = gaps[this.waveN % gaps.length];
         for (const m of team) {
           m.wave = true;
           g.order(m, { type: 'amove', x: gap[0] + Math.random() * 3, z: gap[1] + Math.random() * 3 });
@@ -98,15 +97,16 @@ export class RivalAI {
   pickTarget() {
     const g = this.g;
     const mine = g.buildings.filter((b) => b.team === TEAM.PLAYER && !b.dead);
-    if (!mine.length) { const u = g.alive(TEAM.PLAYER)[0]; return u ? [u.x, u.z] : LAYOUT.playerGrod; }
+    if (!mine.length) { const u = g.alive(TEAM.PLAYER)[0]; return u ? [u.x, u.z] : map().player.grod; }
     // the building nearest to the rival clan, which is usually the most exposed one
-    mine.sort((a, b) => Math.hypot(a.x - 60, a.z + 60) - Math.hypot(b.x - 60, b.z + 60));
+    const [hx, hz] = map().rival.grod;
+    mine.sort((a, b) => Math.hypot(a.x - hx, a.z - hz) - Math.hypot(b.x - hx, b.z - hz));
     const b = mine[0];
     return [b.x + 2, b.z - b.def.size / 2 - 2];
   }
   buildNear(bt, builders) {
     const g = this.g, def = BUILDINGS[bt];
-    const [cx, cz] = LAYOUT.rivalGrod;
+    const [cx, cz] = map().rival.grod;
     for (let k = 0; k < 30; k++) {
       const a = Math.random() * Math.PI * 2, r = 13 + Math.random() * 12;
       const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
@@ -125,23 +125,25 @@ export class RivalAI {
 
 /** The starting positions (design doc section 5 for the player; the rival starts established). */
 export async function setupMatch(g) {
-  const [px, pz] = LAYOUT.playerGrod, [rx, rz] = LAYOUT.rivalGrod;
+  const M = map();
+  const [px, pz] = M.player.grod, [rx, rz] = M.rival.grod;
+  const rs = M.springs[M.rival.spring ?? 2];
   const jobs = [];
   jobs.push(g.placeBuilding('grod', TEAM.PLAYER, px, pz, true));
   jobs.push(g.placeBuilding('grod', R, rx, rz, true));
   jobs.push(g.placeBuilding('warhall', R, rx + 16, rz + 2, true));
   jobs.push(g.placeBuilding('khata', R, rx - 14, rz - 6, true));
-  jobs.push(g.placeBuilding('shrine', R, LAYOUT.springs[2][0], LAYOUT.springs[2][1], true));
+  jobs.push(g.placeBuilding('shrine', R, rs[0], rs[1], true));
   await Promise.all(jobs);
   const pg = g.grodOf(TEAM.PLAYER), rg = g.grodOf(R);
   const us = [];
   for (let i = 0; i < 3; i++) us.push(g.spawnUnit('vietra', TEAM.PLAYER, px - 3 + i * 3, pz + 9));
   us.push(g.spawnUnit('zherca', TEAM.PLAYER, px + 8, pz + 8, 0.6));
   for (let i = 0; i < 4; i++) us.push(g.spawnUnit('vietra', R, rx - 3 + i * 2, rz + 9));
-  us.push(g.spawnUnit('zherca', R, LAYOUT.springs[2][0] - 3, LAYOUT.springs[2][1] + 3));
+  us.push(g.spawnUnit('zherca', R, rs[0] - 3, rs[1] + 3));
   us.push(g.spawnUnit('streletz', R, rx - 8, rz + 16)); us.push(g.spawnUnit('streletz', R, rx - 5, rz + 17));
   us.push(g.spawnUnit('streletz', R, rx + 6, rz + 16)); us.push(g.spawnUnit('vitez', R, rx - 1, rz + 18));
-  us.push(g.spawnUnit('spirit', TEAM.NEUTRAL, LAYOUT.clearing[0], LAYOUT.clearing[1], Math.PI));
+  if (M.clearing) us.push(g.spawnUnit('spirit', TEAM.NEUTRAL, M.clearing[0], M.clearing[1], Math.PI));
   const made = await Promise.all(us);
   for (const u of made) {
     if (u.ut === 'vietra') { g.order(u, { type: 'dance', grod: u.team === R ? rg : pg }); }

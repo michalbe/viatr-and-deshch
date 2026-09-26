@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { createRig } from '../rig.js';
 import { setSurfaceDefaults } from '../surfaces.js';
 import { preloadAssets } from '../assetlib.js';
-import { UNITS, BUILDINGS, TEAM, LAYOUT, MAP } from './config.js';
-import { buildTerrain, vegetation, buildStaticGrid, heightAt, applyFog, fogFactorAt, wearGround, blockCircle, bandT } from './terrain.js';
+import { UNITS, BUILDINGS, TEAM, MAP } from './config.js';
+import { loadMap, map, buildTerrain, vegetation, buildStaticGrid, heightAt, applyFog, fogFactorAt, wearGround, blockCircle, bandT } from './terrain.js';
 import { makeUnitModel, makeBuildingModel, makeProp, instanced, portrait } from './models.js';
 import { Game } from './game.js';
 import { RivalAI, setupMatch } from './ai.js';
@@ -34,6 +34,8 @@ const SPEED = Math.max(1, Math.min(20, +(new URLSearchParams(location.search).ge
 
 async function boot() {
   step(0.05, 'shaping the valley');
+  const mapId = new URLSearchParams(location.search).get('map') || 'sacred_valley';
+  loadMap((await import(`../maps/${mapId}.js`)).default);
   const terrain = buildTerrain(scene, rig.tier.name);
   const layout = vegetation();
   buildStaticGrid(layout);
@@ -61,13 +63,16 @@ async function boot() {
     const p = await makeProp('sacred_spring', S);
     p.position.set(s.x, heightAt(s.x, s.z) - 0.05, s.z); scene.add(p); s.prop = p; props.push({ obj: p, x: s.x, z: s.z });
   }
-  const idol = await makeProp('stone_idol', S);
-  idol.position.set(LAYOUT.idol[0], heightAt(...LAYOUT.idol) - 0.2, LAYOUT.idol[1]); idol.rotation.y = 0.5;
-  scene.add(idol); props.push({ obj: idol, x: LAYOUT.idol[0], z: LAYOUT.idol[1], idol: true });
-  game.addSite({ st: 'idol', name: 'Old Idol', title: 'Four faces on the hill', x: LAYOUT.idol[0], z: LAYOUT.idol[1], radius: 3.6, state: 'sleeping', prop: idol });
+  const M = map();
+  if (M.idol) {
+    const idol = await makeProp('stone_idol', S);
+    idol.position.set(M.idol[0], heightAt(...M.idol) - 0.2, M.idol[1]); idol.rotation.y = 0.5;
+    scene.add(idol); props.push({ obj: idol, x: M.idol[0], z: M.idol[1], idol: true });
+    game.addSite({ st: 'idol', name: 'Old Idol', title: 'Four faces on the hill', x: M.idol[0], z: M.idol[1], radius: 3.6, state: 'sleeping', prop: idol });
+  }
   // the forest closes the path through the Leshy's clearing with roots at both ends; the Leshy withdraws them when appeased
-  const ct = bandT(LAYOUT.clearing[0], LAYOUT.clearing[1]);
-  for (const d of [-12, 12]) {
+  const ct = M.clearing ? bandT(M.clearing[0], M.clearing[1]) : 0;
+  for (const d of M.clearing && M.forests.some((f) => f.kind === 'band' && f.corridor) ? [-12, 12] : []) {
     const x = (ct + d) / Math.SQRT2, z = (ct - d) / Math.SQRT2;
     const wall = await makeProp('root_wall', S);
     wall.position.set(x, heightAt(x, z) - 0.1, z); wall.rotation.y = -Math.PI / 4;
