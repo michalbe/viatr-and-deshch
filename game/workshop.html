@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wind &amp; Rain — Character Workshop</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme:dark; }
+  * { box-sizing:border-box; }
+  html, body { width:100%; height:100%; margin:0; overflow:hidden; }
+  body { background:var(--color-canvas, #2c262a); color:var(--color-text, #d6d0d4); font-family:var(--font-sans, ui-sans-serif, system-ui, sans-serif); }
+  button, select { font:inherit; }
+  button:focus-visible, select:focus-visible { outline:2px solid var(--color-accent, #85aab3); outline-offset:2px; }
+  #app { display:grid; grid-template-columns:minmax(250px, 310px) minmax(0, 1fr); height:100%; }
+  aside { position:relative; z-index:2; display:flex; flex-direction:column; gap:18px; min-height:0; padding:22px; overflow:auto; background:var(--color-card, #332a2f); border-right:1px solid var(--color-line, #3e373c); }
+  .eyebrow, .section-title { margin:0; color:var(--color-muted, #968f94); font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+  h1 { margin:5px 0 0; color:var(--color-bright, #ece7ea); font-size:clamp(24px, 3vw, 34px); font-weight:650; letter-spacing:-.035em; }
+  .scope { margin:8px 0 0; color:var(--color-muted, #968f94); font-size:13px; line-height:1.55; }
+  .scope strong { color:var(--color-accent, #85aab3); font-weight:650; }
+  .controls { display:grid; gap:13px; }
+  label { display:grid; gap:6px; color:var(--color-muted, #968f94); font-size:12px; font-weight:650; }
+  select, button { min-height:38px; color:var(--color-text, #d6d0d4); background:var(--color-panel, #312b2f); border:1px solid var(--color-line, #3e373c); border-radius:7px; }
+  select { width:100%; padding:0 10px; cursor:pointer; }
+  button { padding:0 12px; cursor:pointer; transition:border-color .15s ease, color .15s ease, background .15s ease; }
+  button:hover { color:var(--color-bright, #ece7ea); border-color:var(--color-muted, #968f94); }
+  button.active { color:var(--color-bright, #ece7ea); background:var(--color-bar, #262024); border-color:var(--color-accent, #85aab3); }
+  .segmented { display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; }
+  .segmented button { min-width:0; padding:0 5px; font-size:12px; }
+  .toggle-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .view-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; }
+  .view-grid button { min-height:34px; padding:0 5px; font-size:11px; }
+  .note { margin:0; padding:11px 12px; color:var(--color-muted, #968f94); background:var(--color-panel, #312b2f); border:1px solid var(--color-line, #3e373c); border-radius:7px; font-size:11px; line-height:1.5; }
+  .note b { color:var(--color-text, #d6d0d4); }
+  .atlas { display:none; }
+  .atlas.on { display:block; }
+  .atlas canvas { display:block; width:100%; height:auto; margin-top:8px; border:1px solid var(--color-line, #3e373c); border-radius:7px; image-rendering:auto; background:#000; }
+  .stats { display:grid; grid-template-columns:repeat(2, 1fr); gap:7px; margin-top:auto; }
+  .stat { padding:9px 10px; background:var(--color-panel, #312b2f); border:1px solid var(--color-line, #3e373c); border-radius:7px; }
+  .stat span { display:block; color:var(--color-faint, #6e676c); font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+  .stat strong { display:block; margin-top:2px; color:var(--color-bright, #ece7ea); font-family:var(--font-mono, ui-monospace, monospace); font-size:14px; font-weight:550; }
+  main { position:relative; min-width:0; min-height:0; background:var(--color-canvas, #2c262a); }
+  #viewport { display:block; width:100%; height:100%; touch-action:none; }
+  .topline { position:absolute; top:16px; left:18px; right:18px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; pointer-events:none; }
+  .model-meta, #state { padding:8px 11px; color:var(--color-text, #d6d0d4); background:var(--color-card, #332a2f); border:1px solid var(--color-line, #3e373c); border-radius:7px; box-shadow:0 8px 30px var(--color-canvas, #2c262a); font-size:12px; }
+  .model-meta strong { color:var(--color-bright, #ece7ea); }
+  .model-meta span { color:var(--color-muted, #968f94); }
+  #state { color:var(--color-muted, #968f94); }
+  #state.error { color:var(--color-red, #c97f77); border-color:var(--color-red, #c97f77); }
+  #state.ready { color:var(--color-green, #87a883); }
+  .compare-labels { position:absolute; left:9%; right:9%; bottom:18px; display:none; grid-template-columns:1fr 1fr; gap:15%; pointer-events:none; }
+  .compare-labels.on { display:grid; }
+  .compare-labels span { justify-self:center; padding:6px 9px; color:var(--color-muted, #968f94); background:var(--color-card, #332a2f); border:1px solid var(--color-line, #3e373c); border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+  .hint { position:absolute; right:18px; bottom:18px; margin:0; color:var(--color-faint, #6e676c); font-size:11px; pointer-events:none; }
+  @media (max-width:760px) {
+    #app { grid-template-columns:1fr; grid-template-rows:minmax(0, 1fr) auto; }
+    main { grid-row:1; }
+    aside { grid-row:2; display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; max-height:47vh; padding:14px; border-right:0; border-top:1px solid var(--color-line, #3e373c); }
+    aside header, .note, .stats { grid-column:1 / -1; }
+    aside header .scope { display:none; }
+    h1 { font-size:21px; }
+    .controls { display:contents; }
+    .stats { grid-template-columns:repeat(4, 1fr); margin-top:0; }
+    .stat { padding:7px; }
+    .hint { display:none; }
+  }
+  @media (max-width:470px) {
+    aside { grid-template-columns:1fr; max-height:53vh; }
+    .controls { display:grid; }
+    .stats { grid-template-columns:repeat(2, 1fr); }
+    .topline { top:10px; left:10px; right:10px; }
+    .model-meta span { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside aria-label="Character workshop controls">
+    <header>
+      <p class="eyebrow">Wind &amp; Rain · model viewer</p>
+      <h1>Character Workshop</h1>
+      <p class="scope">Inspect the unit assets exactly as the game builds them: clan colours, painted atlas, silhouette, animation and render cost. It does not boot the game.</p>
+    </header>
+
+    <div class="controls">
+      <label>Character
+        <select id="character">
+          <option value="vitez">Vitez</option>
+          <option value="vietra">Vietra</option>
+          <option value="zherca">Zherca</option>
+          <option value="streletz">Streletz</option>
+          <option value="deer">Deer Rider</option>
+          <option value="bear">Bear</option>
+          <option value="spirit">Forest Spirit</option>
+          <option disabled>── buildings ──</option>
+          <option value="grod">Grod</option>
+          <option value="khata">Khata</option>
+          <option value="warhall">War Hall</option>
+          <option value="shrine">Rain Shrine</option>
+          <option value="grove">Sacred Grove</option>
+          <option disabled>── props ──</option>
+          <option value="stone_idol">Stone Idol</option>
+          <option value="sacred_spring">Sacred Spring</option>
+          <option value="pine_tree">Pine Tree</option>
+          <option value="birch_tree">Birch Tree</option>
+          <option value="rock_cluster">Rock Cluster</option>
+          <option value="reeds">Reeds</option>
+          <option value="grass_tuft">Grass Tuft</option>
+        </select>
+      </label>
+      <label>Clan
+        <select id="clan">
+          <option value="0">Crimson clan</option>
+          <option value="1">Blue clan</option>
+          <option value="2">Forest / neutral</option>
+        </select>
+      </label>
+      <label>Surface
+        <span class="segmented" id="surface">
+          <button type="button" class="active" data-value="painted">Painted</button>
+          <button type="button" data-value="plain">Clay</button>
+          <button type="button" data-value="compare">Compare</button>
+        </span>
+      </label>
+      <label>Procedural pose · anim.js
+        <select id="pose">
+          <option value="rest">Rest</option>
+          <option value="idle">Idle</option>
+          <option value="walk">Walk cycle</option>
+          <option value="attack">Attack cycle</option>
+          <option value="dance">Wind dance (Vietra)</option>
+          <option value="rite">Rain rite (Zherca)</option>
+          <option value="build">Build</option>
+        </select>
+      </label>
+      <div class="toggle-grid">
+        <button type="button" id="wireframe">Wireframe</button>
+        <button type="button" id="rotate">Auto rotate</button>
+      </div>
+      <label>Framing
+        <span class="view-grid" id="views">
+          <button type="button" class="active" data-view="front">Front</button>
+          <button type="button" data-view="side">Side</button>
+          <button type="button" data-view="back">Back</button>
+          <button type="button" data-view="face">Face</button>
+          <button type="button" data-view="rts">RTS</button>
+        </span>
+      </label>
+    </div>
+
+    <div class="atlas" id="atlas"><p class="section-title">Painted atlas</p><canvas width="512" height="512"></canvas></div>
+    <p class="note"><b>Painted</b> shows a model as the game draws it: characters carry one hand-painted atlas each (one draw call), buildings and props share a set of repeating painted textures. <b>Clay</b> drops the paint to judge silhouette and topology.</p>
+
+    <section class="stats" aria-label="Live renderer statistics">
+      <div class="stat"><span>Triangles</span><strong id="triangles">—</strong></div>
+      <div class="stat"><span>Draw calls</span><strong id="draws">—</strong></div>
+      <div class="stat"><span>Materials</span><strong id="materials">—</strong></div>
+      <div class="stat"><span>Meshes</span><strong id="meshes">—</strong></div>
+    </section>
+  </aside>
+
+  <main>
+    <canvas id="viewport" aria-label="Interactive 3D character viewport"></canvas>
+    <div class="topline">
+      <div class="model-meta"><strong id="modelName">Vitez</strong> <span id="modelDetail">Heavy Warrior · 3.38 m display height</span></div>
+      <div id="state" role="status">Loading Vitez…</div>
+    </div>
+    <div class="compare-labels" id="compareLabels"><span>Painted</span><span>Clay</span></div>
+    <p class="hint">Drag to orbit · wheel to zoom · right-drag to pan</p>
+  </main>
+</div>
+<script type="module" src="./src/workshop.js"></script>
+</body>
+</html>

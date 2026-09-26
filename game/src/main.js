@@ -102,7 +102,7 @@ async function boot() {
   $('load').style.display = 'none';
   $('start').classList.add('on');
   window.__READY__ = true;
-  window.__DBG__ = { game, ui, camera };
+  window.__DBG__ = { game, ui, camera, rig, renderer };
 }
 
 function fogVisuals() {
