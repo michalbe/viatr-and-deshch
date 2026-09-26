@@ -21,7 +21,7 @@ export class UI {
     this.g = game; this.cam = camera; this.canvas = canvas; this.portraits = portraits;
     this.target = new THREE.Vector2(LAYOUT.playerGrod[0] + 4, LAYOUT.playerGrod[1] + 4);
     this.dist = 50; this.distGoal = 50; this.pitch = 1.06;
-    this.keys = new Set(); this.mouse = { x: 0, y: 0, in: false, down: false, bx: 0, by: 0, button: 0 };
+    this.keys = new Set(); this.mouse = { x: innerWidth / 2, y: innerHeight / 2, in: false, moved: false, down: false, bx: 0, by: 0, button: 0 };
     this.mode = null;               // null | {type:'place', bt} | {type:'amove'}
     this.groups = {};
     this.stick = { active: false, x: 0, y: 0, id: null };
@@ -54,7 +54,7 @@ export class UI {
     if (this.keys.has('KeyS') && !this.cmdKeys.KeyS || this.keys.has('ArrowDown')) pan.y += 1;
     if (this.keys.has('KeyA') && !this.cmdKeys.KeyA || this.keys.has('ArrowLeft')) pan.x -= 1;
     if (this.keys.has('KeyD') && !this.cmdKeys.KeyD || this.keys.has('ArrowRight')) pan.x += 1;
-    if (FINE && this.mouse.in && !this.mouse.down) {
+    if (FINE && this.mouse.in && this.mouse.moved && !this.mouse.down) {
       const e = 6;
       if (this.mouse.x < e) pan.x -= 1; if (this.mouse.x > innerWidth - e) pan.x += 1;
       if (this.mouse.y < e) pan.y -= 1; if (this.mouse.y > innerHeight - e) pan.y += 1;
@@ -558,7 +558,7 @@ export class UI {
     } else if (e.button === 1) { this.mouse.panning = true; }
   }
   mmove(e) {
-    this.mouse.x = e.clientX; this.mouse.y = e.clientY;
+    this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.moved = true;
     if (this.mode?.type === 'place') { const p = this.groundAt(e.clientX, e.clientY); if (p) this.ghostAt(p.x, p.z); }
     if (this.mouse.down && this.mouse.button === 1) { this.target.x -= e.movementX * this.dist * 0.0025; this.target.y -= e.movementY * this.dist * 0.0035; return; }
     if (this.mouse.down && this.mouse.button === 0 && !this.mode) {

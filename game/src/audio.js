@@ -147,6 +147,15 @@ export function sfx(name, vol = 1) {
     env(g, t, 0.02, 0.45 * vol, 1.6); n.connect(f); f.connect(g); g.connect(sfxBus); n.start(t); n.stop(t + 1.8);
   } else if (name === 'knock') {
     clave(t, 0.12 * vol, 520 + Math.random() * 120);
+  } else if (name === 'raise') {
+    // a founding dance: bells and a breath of wind
+    bells(t, 0.05 * vol);
+    const n = noise(), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.frequency.value = 700 + Math.random() * 400; f.Q.value = 1.5;
+    env(g, t, 0.15, 0.06 * vol, 0.7); n.connect(f); f.connect(g); g.connect(sfxBus); n.start(t); n.stop(t + 0.9);
+  } else if (name === 'raiseDeep') {
+    // the raising rite: a low voice and settling stone
+    voice(t, 98 + Math.random() * 20, 0.9, 0.05 * vol, sfxBus);
+    drum(t + 0.3, 50, 0.18 * vol, sfxBus);
   } else if (name === 'trained') {
     [392, 523.3].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = f; env(g, t + i * 0.09, 0.005, 0.12, 0.3); o.connect(g); g.connect(sfxBus); o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.4); });
   } else if (name === 'objective') {

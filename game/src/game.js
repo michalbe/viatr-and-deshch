@@ -16,7 +16,7 @@ const tmpV = new THREE.Vector3();
 
 export class Game {
   constructor(scene, fx) {
-    this.scene = scene; this.fx = fx;
+    this.scene = scene; this.fx = fx; this.cons = null;   // Construction helper, set by main
     this.units = []; this.buildings = []; this.pending = 0;
     this.time = 0;
     this.teams = [0, 1, 2].map(() => ({ wind: START.wind, rain: START.rain, windTotal: 0, rainTotal: 0, trained: {}, lost: 0, kills: 0, lastAlarm: -99 }));
@@ -106,14 +106,14 @@ export class Game {
     const model = await makeBuildingModel(def.asset, team);
     this.pending--;
     b.model = model; b.root.add(model);
-    this.updateBuildingScale(b);
+    if (!built) { model.visible = false; if (this.cons) this.cons.begin(b); else this.updateBuildingScale(b); }
     return b;
   }
   groundLevel(x, z, size) {
     const h = size / 2 - 0.5;
     return Math.min(heightAt(x, z), heightAt(x - h, z - h), heightAt(x + h, z - h), heightAt(x - h, z + h), heightAt(x + h, z + h));
   }
-  updateBuildingScale(b) { if (b.model) b.model.scale.set(1, b.built ? 1 : 0.12 + 0.88 * b.progress, 1); }
+  updateBuildingScale(b) { if (b.model && !this.cons) b.model.scale.set(1, b.built ? 1 : 0.12 + 0.88 * b.progress, 1); }
 
   /* ------------------------------------------------------------ queries */
   alive(team, pred) { return this.units.filter((u) => !u.dead && (team === undefined || u.team === team) && (!pred || pred(u))); }
@@ -331,6 +331,7 @@ export class Game {
       if (t.spring) { t.spring.shrine = null; if (t.spring.prop) t.spring.prop.visible = true; }
       if (t.team !== TEAM.PLAYER || true) for (const q of t.queue) this.pay(t.team, UNITS[q.ut], -1);
       t.queue = [];
+      if (this.cons) this.cons.abort(t);
       sfx('collapse');
       for (let k = 0; k < 6; k++) this.fx.puff(t.x + (Math.random() - 0.5) * t.def.size, heightAt(t.x, t.z) + 1, t.z + (Math.random() - 0.5) * t.def.size, 6, [0.45, 0.4, 0.33], 2, 0.7, 2.4);
       if (t.bt === 'grod') this.emit('grodDown', t);
@@ -367,6 +368,8 @@ export class Game {
       if (!b.dead) continue;
       b.deadT += dt;
       b.root.rotation.z = Math.min(0.3, b.deadT * 0.12); b.root.position.y -= dt * 1.4;
+      // the land takes the wreck back: leaves and moss drift over it as it sinks
+      if (Math.random() < dt * 8) this.fx.glow.emit(b.x + (Math.random() - 0.5) * b.def.size, heightAt(b.x, b.z) + 0.3 + Math.random() * 1.5, b.z + (Math.random() - 0.5) * b.def.size, (Math.random() - 0.5), 0.3, (Math.random() - 0.5), 1.5, 0.4, 0.45, 0.65, 0.3, 0.7);
       if (b.deadT > 3.5) { this.scene.remove(b.root); this.buildings.splice(i, 1); }
     }
     this.fogT -= dt; if (this.fogT <= 0) { this.fogT = 0.25; this.updateFog(); this.emit('fog'); }
@@ -374,7 +377,8 @@ export class Game {
   }
 
   updateBuilding(b, dt) {
-    if (b.dead || !b.built) return;
+    if (b.dead) return;
+    if (!b.built) { if (this.cons) this.cons.update(b, dt); return; }
     const q = b.queue[0];
     if (q) {
       q.t += dt;
@@ -607,15 +611,19 @@ export class Game {
       }
       u.speedNow = 0; u.path = null;
       u.face = turn(u.face, Math.atan2(b.x - u.x, b.z - u.z), dt * 8);
-      u.anim.mode = 'build';
+      if (u.interruptT > 0) { u.anim.mode = 'idle'; return; }        // the rite pauses under attack
+      // the Founding Dance / the raising rite: no carpentry, the land does the work
+      u.anim.mode = u.ut === 'vietra' ? 'dance' : 'rite';
       b.progress = Math.min(1, b.progress + dt / b.def.time);
       b.hp = Math.min(b.maxHp, b.hp + (b.maxHp * 0.9) * dt / b.def.time);
-      if (Math.random() < dt * 2.4) { sfx('knock', u.team === TEAM.PLAYER ? 0.7 : 0.25); this.fx.puff(u.x + Math.sin(u.face) * 1.2, u.y + 0.4, u.z + Math.cos(u.face) * 1.2, 2, [0.6, 0.52, 0.4], 0.6, 0.4, 0.7); }
+      if (Math.random() < dt * 1.2) sfx(u.ut === 'vietra' ? 'raise' : 'raiseDeep', u.team === TEAM.PLAYER ? 0.6 : 0.2);
+      if (Math.random() < dt * 5) this.fx.ritualMotes(u, b, u.ut === 'vietra' ? 'raise' : 'consecrate');
       this.updateBuildingScale(b);
       if (b.progress >= 1) {
         b.built = true; this.updateBuildingScale(b);
+        if (this.cons) this.cons.end(b);
         if (b.team === TEAM.PLAYER) { sfx('trained'); this.emit('built', b); }
-        this.fx.puff(b.x, heightAt(b.x, b.z) + 0.5, b.z, 14, [0.62, 0.55, 0.42], b.def.size * 0.8, 0.5, 2);
+        else this.fx.puff(b.x, heightAt(b.x, b.z) + 0.5, b.z, 14, [0.62, 0.55, 0.42], b.def.size * 0.8, 0.5, 2);
         this.afterBuild(u, o, b);
       }
     }

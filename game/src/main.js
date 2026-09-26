@@ -11,6 +11,7 @@ import { makeUnitModel, makeBuildingModel, makeProp, instanced, portrait } from 
 import { Game } from './game.js';
 import { RivalAI, setupMatch } from './ai.js';
 import { FX } from './fx.js';
+import { Construction } from './construction.js';
 import { UI } from './ui.js';
 import { initAudio, resumeAudio, updateAudio, sfx } from './audio.js';
 
@@ -39,7 +40,7 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 0));
 
   step(0.15, 'reading the asset modules');
-  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft'];
+  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft', 'founding_stake'];
   await preloadAssets(names.map((n) => `./assets/${n}.js`));
 
   step(0.3, 'planting the forest');
@@ -55,6 +56,7 @@ async function boot() {
   step(0.45, 'finding the sacred springs');
   fx = new FX(scene, camera);
   game = new Game(scene, fx);
+  game.cons = new Construction(scene, fx);
   for (const s of game.springs) {
     const p = await makeProp('sacred_spring', S);
     p.position.set(s.x, heightAt(s.x, s.z) - 0.05, s.z); scene.add(p); s.prop = p; props.push({ obj: p, x: s.x, z: s.z });
@@ -199,7 +201,7 @@ function overlays(dt) {
     const y = heightAt(b.x, b.z);
     const col = b.team === 0 ? 0x6cff5a : 0xff5040;
     if (sel.has(b)) fx.ring(b.x, y, b.z, b.def.size * 0.72, col);
-    if (!b.built) fx.bar(b.x, y + b.def.height * (0.2 + 0.8 * b.progress) + 1, b.z, b.def.size * 0.5, b.progress, 0x7fc8ff);
+    if (!b.built) { fx.bar(b.x, y + b.def.height * (0.2 + 0.8 * b.progress) + 1, b.z, b.def.size * 0.5, b.progress, 0x7fc8ff); fx.ring(b.x, y, b.z, b.def.size * 0.62 + 0.3 * Math.sin(t * 2), b.team === 0 ? 0xc8a860 : 0x8090c0); }
     else if (sel.has(b) || b.hp < b.maxHp) fx.bar(b.x, y + b.def.height + 1, b.z, b.def.size * 0.5, b.hp / b.maxHp, col);
     if (b.bt === 'shrine' && b.built) {
       const n = b.workers.filter((w) => !w.dead && w.anim.mode === 'rite').length;
@@ -219,5 +221,11 @@ function overlays(dt) {
 requestAnimationFrame(frame);
 // a hidden tab gets no animation frames; with ?bg=1 the simulation keeps stepping at 10 Hz (remote checks, soak tests)
 // Chrome throttles hidden-tab timers to once a second, so each beat steps a whole second in ten fixed slices and draws once
-if (new URLSearchParams(location.search).has('bg')) setInterval(() => { if (document.hidden) { for (let k = 0; k < 10; k++) tick(0.1, k === 9); last = performance.now(); } }, 100);
+if (new URLSearchParams(location.search).has('bg')) setInterval(() => {
+  if (!document.hidden) return;
+  const now = performance.now(), n = Math.min(20, Math.round((now - last) / 100));
+  if (n < 1) return;
+  for (let k = 0; k < n; k++) tick(0.1, k === n - 1);
+  last = now;
+}, 100);
 boot().catch((e) => { console.warn(e); msg.textContent = 'failed to load: ' + e.message; });

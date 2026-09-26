@@ -215,7 +215,7 @@ export class FX {
   }
   /** motes streaming from a ritualist to what she is working on */
   ritualMotes(u, t, ritual) {
-    const n = 3, col = ritual === 'offer' ? [0.9, 0.85, 0.55] : ritual === 'consecrate' ? [0.95, 0.95, 0.9] : ritual === 'wake' ? [0.62, 0.94, 0.78] : [0.7, 0.88, 1.0];
+    const n = 3, col = ritual === 'offer' ? [0.9, 0.85, 0.55] : ritual === 'consecrate' ? [0.95, 0.95, 0.9] : ritual === 'wake' ? [0.62, 0.94, 0.78] : ritual === 'raise' ? [0.85, 0.95, 1.0] : [0.7, 0.88, 1.0];
     for (let i = 0; i < n; i++) {
       const k = Math.random(), x = u.x + (t.x - u.x) * k, z = u.z + (t.z - u.z) * k, y = u.y + 1.2 + Math.sin(k * Math.PI) * 1.5;
       this.glow.emit(x, y, z, (t.x - u.x) * 0.5, 0.6, (t.z - u.z) * 0.5, 0.9, 0.4, col[0], col[1], col[2], 0.85);

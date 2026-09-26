@@ -43,8 +43,8 @@ function makeShared(THREE) {
     glow: tex(323, (P, c, w, h) => P.fill(w, h, P.tone(0x9ff0c8, 0.3)), 32),
   };
   const M = {};
-  for (const [k, t] of Object.entries(T)) M[k] = mat(t, 0xffffff);
-  M.team = mat(T.team, 0xc0282d, { side: THREE.DoubleSide });          // the loader swaps this hex for the clan
+  for (const [k, t] of Object.entries(T)) { M[k] = mat(t, 0xffffff); M[k].userData.tex = k; }
+  M.team = mat(T.team, 0xc0282d, { side: THREE.DoubleSide }); M.team.userData.tex = 'team';   // the loader swaps this hex for the clan
   M.linen2 = mat(T.linen, 0xffffff, { side: THREE.DoubleSide });
   M.thatch2 = mat(T.thatch, 0xffffff, { side: THREE.DoubleSide });
   M.blades2 = mat(T.blades, 0xffffff, { side: THREE.DoubleSide });
