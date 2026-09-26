@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { UNITS, BUILDINGS, TEAM, START, WIND_PER_VIETRA, RAIN_PER_ZHERCA, SHRINE_SLOTS, DANCE_RADIUS, INTERRUPT_S, OBJECTIVES, MAP, clamp } from './config.js';
-import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap, unblockCells, map } from './terrain.js';
+import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap, unblockCells, map, riverDist } from './terrain.js';
 import { findPath, lineFree, nearestFree } from './path.js';
 import { makeUnitModel, makeBuildingModel } from './models.js';
 import { animate, animateDeath } from './anim.js';
@@ -467,7 +467,7 @@ export class Game {
       if (last) { u.speedNow = 0; u.path = null; return true; }
       u.pi++; return false;
     }
-    const sp = u.speed * (u.interruptT > 0 && u.def.kind === 'econ' ? 1.1 : 1);
+    const sp = u.speed * (u.interruptT > 0 && u.def.kind === 'econ' ? 1.1 : 1) * (u.slowT > 0 ? 0.55 : 1);
     const step = Math.min(d, sp * dt);
     const nx = u.x + dx / d * step, nz = u.z + dz / d * step;
     const [ci, cj] = cellOf(nx, nz);
@@ -530,7 +530,19 @@ export class Game {
         }
       }
     }
+    if (u.stunT > 0) { u.stunT -= dt; u.anim.mode = 'idle'; u.speedNow = 0; u.path = null; return; }
+    if (u.slowT > 0) u.slowT -= dt;
+    if (u.luredT > 0) {
+      // the Song: a step toward the singer, against every order
+      u.luredT -= dt; const s = u.luredBy;
+      if (s && !s.dead) { const dx = s.x - u.x, dz = s.z - u.z, d = Math.hypot(dx, dz) || 1; if (d > 1.6) { u.x += dx / d * 1.6 * dt; u.z += dz / d * 1.6 * dt; } u.face = turn(u.face, Math.atan2(dx, dz), dt * 6); u.anim.mode = 'walk'; u.speedNow = 1.6; u.path = null; return; }
+    }
     if (u.def.brain === 'leshy') return this.spiritBrain(u, dt);
+    if (u.def.brain === 'convoy') return this.convoyBrain(u, dt);
+    if (u.def.brain === 'ognik') return this.ognikBrain(u, dt);
+    if (u.def.brain === 'vila') return this.vilaBrain(u, dt);
+    if (u.def.brain === 'vodnik') return this.vodnikBrain(u, dt);
+    if (u.def.brain === 'rusalka') return this.rusalkaBrain(u, dt);
     if (u.def.brain === 'leshonok') return this.leshonokBrain(u, dt);
     if (u.def.brain === 'upir') return this.upirBrain(u, dt);
     if (u.def.brain === 'striga') return this.strigaBrain(u, dt);
@@ -704,6 +716,7 @@ export class Game {
     for (const e of this.units) {
       if (e.dead || e.team === u.team) continue;
       if (e.def.brain === 'leshy' && (e.appeased || (!e.hostile && Math.hypot(e.x - u.x, e.z - u.z) > 6))) continue;   // the Leshy is left alone unless it has turned on us
+      if (e.def.kind === 'spirit' && e.def.brain !== 'leshy' && (e.appeased || e.def.lure || (!e.hostile && e.def.brain !== 'leshonok' && Math.hypot(e.x - u.x, e.z - u.z) > 6))) continue;   // no one picks a fight with a light, a friend, or a spirit minding its own
       const d = (e.x - u.x) ** 2 + (e.z - u.z) ** 2;
       if (d < bd && this.visibleTo(u.team, e)) { bd = d; best = e; }
     }
@@ -755,7 +768,7 @@ export class Game {
     if (u.scanT <= 0) {
       u.scanT = 0.5;
       // intruders in the clearing: a warning first, then patience runs out
-      let best = null, bd = 12 * 12;
+      const watch = u.watch || 12; let best = null, bd = watch * watch;
       for (const e of this.units) { if (e.dead || e === u || e.team === TEAM.NEUTRAL) continue; const d = (e.x - hx) ** 2 + (e.z - hz) ** 2; if (d < bd) { bd = d; best = e; } }
       if (best) {
         if (!u.warned || this.time - u.warned > 40) { u.warned = this.time; if (best.team === TEAM.PLAYER) this.emit('leshyWarn', u, best); sfx('spirit', this.visibleTo(0, u) ? 0.7 : 0); }
@@ -854,6 +867,149 @@ export class Game {
     const g0 = this.grodOf(TEAM.PLAYER);
     if (g0 && dark > 0.3) this.order(u, { type: 'move', x: g0.x + (Math.random() - 0.5) * 30, z: g0.z + (Math.random() - 0.5) * 30 });
     else if (u.home) { const a = Math.random() * 6.28; this.order(u, { type: 'move', x: u.home[0] + Math.cos(a) * 8, z: u.home[1] + Math.sin(a) * 8 }); }
+  }
+
+  /* ------------------------------------------------------------ the family on the road */
+  convoyBrain(u, dt) {
+    const o = u.order;
+    if (o?.type === 'move' || o?.type === 'amove') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.0)) { u.order = u.next.shift() || null; } return; }
+    if (o?.type === 'attack') { this.order(u, null); return; }
+    u.anim.mode = 'idle'; u.speedNow = 0;
+    if (u.next.length) { u.order = u.next.shift(); return; }
+    if (u.scanT <= 0) {
+      u.scanT = 0.6;
+      // no fight in them: they run from anything that means harm
+      let threat = null, bd = 9 * 9;
+      for (const e of this.units) { if (e.dead || e.team === u.team || e.def.dmg <= 0 || (e.def.kind === 'spirit' && e.appeased)) continue; const d = (e.x - u.x) ** 2 + (e.z - u.z) ** 2; if (d < bd) { bd = d; threat = e; } }
+      if (threat) { const a = Math.atan2(u.z - threat.z, u.x - threat.x); this.order(u, { type: 'move', x: u.x + Math.cos(a) * 7, z: u.z + Math.sin(a) * 7 }); }
+    }
+  }
+  /* ------------------------------------------------------------ the wandering light */
+  ognikBrain(u, dt) {
+    const [hx, hz] = u.home, o = u.order;
+    u.glowT = (u.glowT || 0) + dt;
+    if (u.lastHitBy) {
+      // touched, the light goes out; it flickers up again further off
+      const from = u.lastHitBy; u.lastHitBy = null; u.hp = u.maxHp;
+      const a = Math.atan2(u.z - from.z, u.x - from.x) + (Math.random() - 0.5);
+      this.fx.puff(u.x, u.y + 1, u.z, 16, [0.7, 0.85, 1], 1.5, 0.5, 1.2);
+      const nx = u.x + Math.cos(a) * 18, nz = u.z + Math.sin(a) * 18; const [i, j] = nearestFree(...cellOf(nx, nz)); [u.x, u.z] = cellCenter(i, j); u.path = null; this.order(u, null);
+      this.fx.puff(u.x, u.y + 1, u.z, 16, [0.7, 0.85, 1], 1.5, 0.5, 1.2);
+      return;
+    }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.0)) this.order(u, null); }
+    else { u.anim.mode = 'idle'; u.speedNow = 0; }
+    if (u.scanT > 0) return;
+    u.scanT = 0.5;
+    const near = this.nearestHuman(u, 20);
+    if (near) {
+      // it keeps just out of reach, and drifts the way it wants the walker to go
+      const away = Math.atan2(u.z - near.z, u.x - near.x);
+      const lure = u.lureTo ? Math.atan2(u.lureTo[1] - u.z, u.lureTo[0] - u.x) : away;
+      const d = Math.hypot(u.x - near.x, u.z - near.z);
+      const a = d < 9 ? away * 0.6 + lure * 0.4 : lure;
+      if (d < 14 || !o) this.order(u, { type: 'move', x: u.x + Math.cos(a) * 8, z: u.z + Math.sin(a) * 8 });
+      if (u.lureTo && Math.hypot(u.x - u.lureTo[0], u.z - u.lureTo[1]) < 6) { u.lureTo = null; this.emit('lured', u, near); }
+      return;
+    }
+    if (!o && Math.random() < 0.3) { const a = Math.random() * 6.28, r = 3 + Math.random() * 8; this.order(u, { type: 'move', x: hx + Math.cos(a) * r, z: hz + Math.sin(a) * r }); }
+    // false lights: now and then the map shows something where nothing is
+    u.pingT = (u.pingT ?? 20) - 0.5;
+    if (u.pingT <= 0) { u.pingT = 18 + Math.random() * 14; const a = Math.random() * 6.28, r = 20 + Math.random() * 20; this.emit('falseLight', u.x + Math.cos(a) * r, u.z + Math.sin(a) * r); }
+  }
+  /* ------------------------------------------------------------ the Vila of the ring */
+  vilaBrain(u, dt) {
+    const [hx, hz] = u.home, o = u.order;
+    const ring = u.ring || this.sites.find((s) => s.st === 'ring' && Math.hypot(s.x - hx, s.z - hz) < 6);
+    u.ring = ring;
+    if (ring?.state === 'appeased' && !u.appeased) { u.appeased = true; u.hostile = false; this.order(u, null); }
+    u.hp = Math.min(u.maxHp, u.hp + 12 * dt);
+    if (o?.type === 'attack' && (!o.target || o.target.dead || o.target.fallen || Math.hypot(u.x - hx, u.z - hz) > 30)) { this.order(u, { type: 'move', x: hx, z: hz, leash: true }); return; }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1)) this.order(u, null); return; }
+    if (o?.type === 'attack') {
+      const t = o.target, d = this.distTo(u, t);
+      if (d <= u.def.range) {
+        u.speedNow = 0; u.path = null; u.face = turn(u.face, Math.atan2(t.x - u.x, t.z - u.z), dt * 6);
+        if (u.cooldown <= 0) {
+          // the dance: everyone close is thrown back and hurt
+          u.cooldown = u.def.cd; u.anim.mode = 'attack'; u.anim.attackT = 0; u.anim.attackDur = 1.0;
+          for (const e of this.units) if (!e.dead && e.team !== u.team && e.def.kind !== 'spirit' && Math.hypot(e.x - u.x, e.z - u.z) < u.def.range + 0.5) { this.damage(e, this.dmgAgainst(u, e), u); e.slowT = 2; }
+          this.fx.puff(u.x, u.y + 1.5, u.z, 26, [0.7, 1, 0.85], 3.5, 0.6, 1.4); sfx('spirit', this.visibleTo(0, u) ? 0.6 : 0);
+        } else if (u.anim.attackT >= u.anim.attackDur) u.anim.mode = 'idle';
+      } else { u.anim.mode = 'walk'; this.goTo(u, t.x, t.z, dt, 0.4); }
+      return;
+    }
+    // idle: she dances in her ring
+    u.anim.mode = 'dance'; u.speedNow = 0;
+    if (u.scanT > 0) return;
+    u.scanT = 0.5;
+    if (u.appeased) {
+      // a friend of the Rodina: she mends whoever rests near her
+      for (const e of this.units) if (!e.dead && e.team === u.appeasedBy && Math.hypot(e.x - u.x, e.z - u.z) < 9) e.hp = Math.min(e.maxHp, e.hp + 3);
+      if (Math.random() < 0.15) { const a = Math.random() * 6.28, r = 2 + Math.random() * 4; this.order(u, { type: 'move', x: hx + Math.cos(a) * r, z: hz + Math.sin(a) * r, leash: true }); }
+      return;
+    }
+    if (u.lastHitBy && !u.lastHitBy.dead) { u.hostile = true; this.order(u, { type: 'attack', target: u.lastHitBy }); u.lastHitBy = null; return; }
+    // a foot inside the ring wakes her; she takes the walker for a dancer, and dances them to death
+    const r = (ring?.radius || 3.4) + 1.2;
+    const in_ = this.nearestHuman(u, r, (e) => Math.hypot(e.x - hx, e.z - hz) < r);
+    if (in_) { if (!u.warned || this.time - u.warned > 30) { u.warned = this.time; if (in_.team === TEAM.PLAYER) this.emit('vilaWarn', u, in_); } u.hostile = true; this.order(u, { type: 'attack', target: in_ }); }
+    else if (u.hostile) { const t = this.nearestHuman(u, 14); if (t) this.order(u, { type: 'attack', target: t }); else u.hostile = false; }
+  }
+  /* ------------------------------------------------------------ the Vodnik */
+  vodnikBrain(u, dt) {
+    const o = u.order, wet = riverDist(u.x, u.z) < 7;
+    const warded = this.systems?.inWard(u.x, u.z);
+    u.speed = u.def.speed * (wet ? 2.4 : 0.9) * (warded ? 0.5 : 1);
+    if (warded) { this.damage(u, 5 * dt, null); if (u.dead) return; }
+    if (u.pendingDrag) {
+      u.pendingDrag.t -= dt;
+      if (u.pendingDrag.t <= 0) {
+        const t = u.pendingDrag.target; u.pendingDrag = null;
+        if (t && !t.dead && !t.fallen && Math.hypot(t.x - u.x, t.z - u.z) < 4.5) {
+          // Drag Under: pulled to the water and held there
+          const dx = u.x - t.x, dz = u.z - t.z, d = Math.hypot(dx, dz) || 1; t.x += dx / d * Math.max(0, d - 1.4); t.z += dz / d * Math.max(0, d - 1.4);
+          t.stunT = 1.6; t.path = null; this.fx.puff(t.x, t.y + 0.4, t.z, 20, [0.3, 0.5, 0.7], 2, 0.6, 1.2); sfx('rumble', this.visibleTo(0, u) ? 0.35 : 0);
+          if (t.team === TEAM.PLAYER) this.emit('toast', `${t.name || t.def.name} is dragged under!`);
+        }
+      }
+    }
+    if (o?.type === 'attack') {
+      const t = o.target; if (!t || t.dead || t.fallen || Math.hypot(u.x - u.home[0], u.z - u.home[1]) > 40) { this.order(u, null); return; }
+      const cd = u.cooldown; this.chase(u, dt, t, { dur: 0.7, hitAt: 0.35 });
+      if (cd <= 0 && u.cooldown > 0 && (u.dragN = (u.dragN || 0) + 1) % 3 === 0) u.pendingDrag = { t: 0.35, target: t };
+      return;
+    }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.2)) this.order(u, null); if (u.scanT <= 0) { u.scanT = 0.5; const t = this.nearestHuman(u, 14); if (t) this.order(u, { type: 'attack', target: t }); } return; }
+    u.anim.mode = 'idle'; u.speedNow = 0;
+    u.hp = Math.min(u.maxHp, u.hp + (wet ? 8 : 0) * dt);
+    if (u.scanT > 0) return;
+    u.scanT = 0.6;
+    const t = this.nearestHuman(u, u.sight, (e) => riverDist(e.x, e.z) < 16);
+    if (t) { this.order(u, { type: 'attack', target: t }); return; }
+    if (u.home && Math.random() < 0.4) { const a = Math.random() * 6.28, r = 2 + Math.random() * 6; this.order(u, { type: 'move', x: u.home[0] + Math.cos(a) * r, z: u.home[1] + Math.sin(a) * r }); }
+  }
+  /* ------------------------------------------------------------ the Rusalka */
+  rusalkaBrain(u, dt) {
+    const o = u.order;
+    const warded = this.systems?.inWard(u.x, u.z);
+    if (warded) { this.damage(u, 6 * dt, null); if (u.dead) return; }
+    u.songT = (u.songT ?? 2) - dt;
+    if (u.songT <= 0 && !warded) {
+      // the Song: everyone who hears it slows; whoever is close takes a step toward the water
+      u.songT = 2.6; let heard = false;
+      for (const e of this.units) { if (e.dead || e.fallen || e.team === u.team || e.def.kind === 'spirit' || e.def.kind === 'nav') continue; const d = Math.hypot(e.x - u.x, e.z - u.z); if (d < 14) { e.slowT = Math.max(e.slowT || 0, 3); heard = true; if (d < 8 && !e.story) { e.luredT = 1.1; e.luredBy = u; } } }
+      if (heard) { u.anim.mode = 'dance'; this.fx.puff(u.x, u.y + 2, u.z, 10, [0.6, 0.9, 0.8], 2.5, 0.3, 1.5); sfx('spirit', this.visibleTo(0, u) ? 0.3 : 0); }
+    }
+    if (o?.type === 'attack') { const t = o.target; if (!t || t.dead || t.fallen || Math.hypot(u.x - u.home[0], u.z - u.home[1]) > 16) { this.order(u, { type: 'move', x: u.home[0], z: u.home[1] }); return; } this.chase(u, dt, t, { dur: 0.5, hitAt: 0.25 }); return; }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.0)) this.order(u, null); return; }
+    if (u.anim.mode !== 'dance' || u.songT < 1.4) u.anim.mode = 'idle';
+    u.speedNow = 0;
+    if (u.scanT > 0) return;
+    u.scanT = 0.5;
+    const t = this.nearestHuman(u, 5);
+    if (t) { this.order(u, { type: 'attack', target: t }); return; }
+    if (Math.random() < 0.2) { const a = Math.random() * 6.28, r = 1 + Math.random() * 4; this.order(u, { type: 'move', x: u.home[0] + Math.cos(a) * r, z: u.home[1] + Math.sin(a) * r }); }
   }
 
   /* ------------------------------------------------------------ checkpoints */

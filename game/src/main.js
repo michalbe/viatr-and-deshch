@@ -131,6 +131,14 @@ async function boot() {
     scene.add(idol); props.push({ obj: idol, x: M.idol[0], z: M.idol[1], idol: true });
     game.addSite({ st: 'idol', name: 'Old Idol', title: 'Four faces on the hill', x: M.idol[0], z: M.idol[1], radius: 3.6, state: 'sleeping', prop: idol });
   }
+  // sacred places the map itself names: old idols and Vila rings
+  for (const sd of M.sites || []) {
+    const prop = await makeProp(sd.st === 'ring' ? 'vila_ring' : 'stone_idol', S);
+    prop.position.set(sd.x, heightAt(sd.x, sd.z) - (sd.st === 'ring' ? 0.05 : 0.2), sd.z); prop.rotation.y = sd.rot ?? (sd.x * 0.13);
+    scene.add(prop); props.push({ obj: prop, x: sd.x, z: sd.z, idol: sd.st === 'idol' });
+    if (sd.block) blockCircle(sd.x, sd.z, sd.block);
+    game.addSite({ radius: sd.st === 'ring' ? 3.4 : 3.6, state: 'sleeping', ...sd, prop });
+  }
   // the forest closes the path through the Leshy's clearing with roots at both ends; the Leshy withdraws them when appeased
   const ct = M.clearing ? bandT(M.clearing[0], M.clearing[1]) : 0;
   for (const d of M.clearing && M.forests.some((f) => f.kind === 'band' && f.corridor) ? [-12, 12] : []) {
@@ -150,7 +158,7 @@ async function boot() {
     for (const ut of Object.keys(UNITS)) if (UNITS[ut].kind !== 'spirit' && UNITS[ut].kind !== 'nav') jobs.push(makeUnitModel(UNITS[ut].asset, team, UNITS[ut].height));
     for (const bt of Object.keys(BUILDINGS)) jobs.push(makeBuildingModel(BUILDINGS[bt].asset, team, S));
   }
-  for (const ut of Object.keys(UNITS)) if (UNITS[ut].kind === 'spirit' || UNITS[ut].kind === 'nav') jobs.push(makeUnitModel(UNITS[ut].asset, TEAM.NEUTRAL, UNITS[ut].height));
+  for (const ut of Object.keys(UNITS)) if ((UNITS[ut].kind === 'spirit' || UNITS[ut].kind === 'nav') && names.includes(UNITS[ut].asset)) jobs.push(makeUnitModel(UNITS[ut].asset, TEAM.NEUTRAL, UNITS[ut].height));
   await Promise.all(jobs);
 
   step(0.75, 'painting portraits');

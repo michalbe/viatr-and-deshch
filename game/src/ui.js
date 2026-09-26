@@ -44,6 +44,8 @@ export class UI {
     game.on('raid', () => {});
     game.on('leshyWarn', (leshy, who) => { this.toast('The trees creak. The Leshy is watching: leave its clearing, or bring an offering.', 'bad'); this.pings.push({ x: leshy.x, z: leshy.z, t: 3 }); });
     game.on('leshySlain', () => this.toast('The forest stirs with anger. Its children are coming.', 'bad'));
+    game.on('vilaWarn', (vila, who) => { this.toast('You have stepped into a Vila\'s ring. She will dance you to death: get out, or bring an offering.', 'bad'); this.pings.push({ x: vila.x, z: vila.z, t: 3 }); });
+    game.on('falseLight', (x, z) => this.pings.push({ x, z, t: 2.5, faint: true }));
     game.on('grodDown', (b) => { if (b.team === TEAM.PLAYER) this.toast('Your Grod has fallen! Raise it again with a Vietra (300 Wind).', 'bad'); });
     game.on('end', (r) => this.showEnd(r));
     game.on('built', (b) => this.toast(`${b.def.name} complete`, 'good'));

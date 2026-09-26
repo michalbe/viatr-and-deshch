@@ -16,6 +16,11 @@ const ASSETS = {
   baba: { unit: 'baba', label: 'Baba' },
   upir: { unit: 'upir', label: 'Upir' },
   striga: { unit: 'striga', label: 'Striga' },
+  ognik: { unit: 'ognik', label: 'Ognik' },
+  vila: { unit: 'vila', label: 'Vila' },
+  vodnik: { unit: 'vodnik', label: 'Vodnik' },
+  rusalka: { unit: 'rusalka', label: 'Rusalka' },
+  family: { unit: 'family', label: 'Family on the road' },
   grod: { building: 'grod', label: 'Grod' },
   khata: { building: 'khata', label: 'Khata' },
   warhall: { building: 'warhall', label: 'Zbroynia' },
@@ -32,6 +37,8 @@ const ASSETS = {
   root_wall: { prop: 'root_wall', label: 'Root Wall', size: 2.5 },
   burial_mound: { prop: 'burial_mound', label: 'Burial Mound', size: 3 },
   corpse: { prop: 'corpse', label: 'Corpse', size: 0.5 },
+  vila_ring: { prop: 'vila_ring', label: 'Vila Ring', size: 7 },
+  upir_drowned: { prop: 'upir_drowned', label: 'Drowned Upir', size: 3 },
 };
 
 const $ = (selector) => document.querySelector(selector);

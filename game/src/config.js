@@ -35,6 +35,11 @@ export const UNITS = {
   upir:     { name: 'Upir',       title: 'The unquiet dead', asset: 'upir',     wind: 0, rain: 0, supply: 0, time: 0, hp: 120, dmg: 12, cd: 1.4, range: 1.6, speed: 2.8, sight: 14, kind: 'nav', brain: 'upir', radius: 0.55, height: 3.0 },
   striga:   { name: 'Striga',     title: 'Night predator',  asset: 'striga',    wind: 0, rain: 0, supply: 0, time: 0, hp: 110, dmg: 18, cd: 1.2, range: 1.8, speed: 5.2, sight: 20, kind: 'nav', brain: 'striga', radius: 0.55, height: 2.6 },
   leshonok: { name: 'Leshonok', title: 'Child of the forest', asset: 'leshonok', wind: 0, rain: 0, supply: 0, time: 0, hp: 90, dmg: 9, cd: 1.0, range: 1.6, speed: 5.4, sight: 14, kind: 'spirit', brain: 'leshonok', radius: 0.5, height: 1.7 },
+  ognik:    { name: 'Ognik',      title: 'Wandering light',  asset: 'ognik',     wind: 0, rain: 0, supply: 0, time: 0, hp: 40, dmg: 0, cd: 9, range: 1, speed: 4.2, sight: 18, kind: 'spirit', brain: 'ognik', lure: true, radius: 0.4, height: 2.2 },
+  vila:     { name: 'Vila',       title: 'Spirit of the ring', asset: 'vila',    wind: 0, rain: 0, supply: 0, time: 0, hp: 420, dmg: 28, cd: 2.4, range: 4.0, speed: 4.0, sight: 16, kind: 'spirit', brain: 'vila', negotiable: true, radius: 0.6, height: 3.6 },
+  vodnik:   { name: 'Vodnik',     title: 'Master of the black water', asset: 'vodnik', wind: 0, rain: 0, supply: 0, time: 0, hp: 520, dmg: 24, cd: 1.8, range: 2.2, speed: 2.4, sight: 16, kind: 'nav', brain: 'vodnik', radius: 0.9, height: 2.4 },
+  rusalka:  { name: 'Rusalka',    title: 'The drowned singer', asset: 'rusalka', wind: 0, rain: 0, supply: 0, time: 0, hp: 150, dmg: 10, cd: 1.4, range: 1.8, speed: 3.0, sight: 16, kind: 'nav', brain: 'rusalka', radius: 0.55, height: 2.9 },
+  family:   { name: 'Family',     title: 'A family of the Rodina on the road', asset: 'family_cart', wind: 0, rain: 0, supply: 0, time: 0, hp: 160, dmg: 0, cd: 9, range: 1, speed: 2.3, sight: 10, kind: 'econ', brain: 'convoy', radius: 1.3, height: 2.2 },
 };
 
 /** size = footprint in metres (square), used for the path grid and selection. */
