@@ -92,7 +92,9 @@ export default function (THREE) {
     add(J.spine, rings([{ y: 0.6, rx: 0.14, rz: 0.12 }, { y: 0.52, rx: 0.16, rz: 0.13 }], 8), 'linen');    // shirt collar
     add(J.head, blob(0.19, 0.21, 0.19, 10, 6), 'faceMan', { pos: [0, 0.2, 0.02] });
     add(J.head, rings([{ y: 0.18, rx: 0.12, rz: 0.1, z: 0.1 }, { y: 0.06, rx: 0.12, rz: 0.09, z: 0.12 }, { y: -0.12, rx: 0.08, rz: 0.06, z: 0.12 }, { y: -0.2, rx: 0.03, rz: 0.03, z: 0.12 }], 7, { capBottom: true }), 'beard');
-    add(J.head, rings([{ y: 0.32, rx: 0.19, rz: 0.19 }, { y: 0.3, rx: 0.34, rz: 0.32 }, { y: 0.27, rx: 0.34, rz: 0.32 }, { y: 0.34, rx: 0.17, rz: 0.16 }, { y: 0.5, rx: 0.14, rz: 0.13 }, { y: 0.52, rx: 0.02, rz: 0.02 }], 10, { capTop: true }), 'felt');   // brimmed felt hat
+    // brimmed felt hat: a flat brim and a crown, each a monotonic loft so no face folds back on itself
+    add(J.head, rings([{ y: 0.31, rx: 0.35, rz: 0.33 }, { y: 0.27, rx: 0.36, rz: 0.34 }], 12, { capTop: true, capBottom: true }), 'felt');
+    add(J.head, rings([{ y: 0.29, rx: 0.19, rz: 0.18 }, { y: 0.36, rx: 0.17, rz: 0.16 }, { y: 0.48, rx: 0.15, rz: 0.14 }, { y: 0.53, rx: 0.06, rz: 0.06 }], 10, { capTop: true }), 'felt');
     for (const s of [1, -1]) arm(J, s, 'wool', { w: 0.08 });
     for (const s of [1, -1]) leg(J, s, 'wool', 'boot', { w: 0.095 });
     // arms back, hands on the crossbar; a long stride
