@@ -1,20 +1,23 @@
 # WIND & RAIN
-## First Playable — Status Report, 26 September 2026
+## Pitch Build — Status Report, 27 September 2026
 
-This document is the companion to `game-design-doc.md` (v0.1). The design doc says what the
-first playable should be; this one says what the build in this repository actually is, where it
-matches the doc, where it falls short, what was added beyond it, and which decisions are now
-open. It is written for the design team, so it follows the doc's section numbers.
+This document is the companion to `game-design-doc.md` (v0.1) and to
+`WIND-AND-RAIN-CAMPAIGN-BLUEPRINT.md` (v0.3). The design doc says what the first playable should
+be; the blueprint says what a publisher-pitchable campaign should be; this one says what the
+build in this repository actually is, where it matches those documents, where it falls short,
+and which decisions are open. It is written for the design team.
 
-The short version: **everything in section 25 ("Minimum Viable First Playable") is in and
-works end to end.** A new player can start, watch Vietras dance for Wind, build a Khata, a War
-Hall and a Rain Shrine, train Streletz and a Vitez, walk an army across the valley, fight, and
-destroy the rival Grod to a victory screen. The rival clan gathers, builds, defends and raids.
-The art has just been rebuilt to the early-2000s target (Warcraft III style painted models).
-What is **not** in: anything the doc puts in "next milestone" (Baba, active rituals, more
-creatures, day/night, weather, a second map), any balance work, and the landmark idol has no
-function. The two questions the doc says the prototype exists to answer (section 26) have not
-been put in front of players yet.
+The short version: **the first playable (design doc §25) is complete, and on top of it the
+blueprint's five-mission campaign is implemented end to end**: a title screen with a campaign
+that remembers progress, five scripted missions on five maps, in-mission dialogue with painted
+portraits, checkpoints, pause, three difficulties, the Dola choices after Missions 3 and 4, and
+every system the blueprint's pitch needs (rituals, Raise construction, the Baba, day/night with
+the unquiet dead, the wandering storm, Binding, no-base exploration with shifting forest paths,
+Vila rings, the Ognik, the Great Leshy choice, rising water, the Vodnik and Rusalki, a convoy
+escort, and the Zmey silhouette that ends the pitch). Each mission has been driven to victory in
+the browser through its scripted phases. What has **not** happened: any playtesting, any balance
+pass, voice, hand-keyed animation, or the blueprint's Phase G polish. The numbers are first
+guesses that make each mission completable, not tuned.
 
 ---
 
@@ -22,238 +25,235 @@ been put in front of players yet.
 
 A browser game: one HTML page, Three.js, no build step, no server logic, no image or audio
 files. Every model is code that paints its own textures at load time; every sound is WebAudio
-synthesis. It runs on a laptop with mouse and keyboard and on a phone with touch controls.
+synthesis. It runs on a laptop with mouse and keyboard (a trackpad is enough: Cmd+click is
+the command click) and on a phone with touch controls.
 
 - **Play:** serve the `game/` folder statically and open `game/index.html`
-  (e.g. `cd game && python3 -m http.server 8765`, then `http://localhost:8765/`).
+  (e.g. `cd game && python3 -m http.server 8765`, then `http://localhost:8765/`). The title
+  offers **Campaign** (continue / new, with difficulty) and **Skirmish** (the original one-map
+  match against the AI).
+- **Jump to a mission:** `?mission=m03` (add `&all` to show every mission on the title even if
+  locked, `&checkpoint=1` to resume the saved checkpoint, `&difficulty=hard`).
 - **Inspect models without playing:** `game/workshop.html` shows every unit, building and prop
   the way the game builds it, with clan colours, poses, wireframe and the painted texture.
-- **Reference screenshots** of the previous art pass are in `_critic/`.
+- **Reference screenshots** of an earlier art pass are in `_critic/`.
 
-One match, one map, one opponent. A session is 10–20 minutes, as the doc asks.
+A skirmish is 10–20 minutes. A mission is 8–20 minutes; the campaign is about an hour and a
+half if nothing goes wrong, which it will.
 
 ---
 
-# 2. Status against the design doc, section by section
+# 2. Status against the design doc (first playable)
 
 | Doc § | Topic | Status | Notes |
 |---|---|---|---|
-| 3 | Core loop | **Done** | Gather Wind → Rain → build → train → explore → fight → expand, all functional. |
-| 4 | Wind and Rain | **Done** | 1 Wind/s per dancing Vietra, 1 Rain/s per Zherca at a shrine; both interrupted by combat. |
-| 5 | Starting state | **Done** | 1 Grod, 3 Vietras (already dancing in the circle), 1 Zherca, 50 Wind, 0 Rain, spring nearby. |
-| 6 | Six units | **Done** | All six, at the doc's costs and supply. Stats are prototype constants (see §7 below). |
-| 7 | Baba | **Not started** | As the doc intends. |
-| 8 | Five buildings | **Done** | Grod, Khata, War Hall, Rain Shrine (must be at a spring), Sacred Grove (unlocks Bear). |
-| 9 | Population | **Done** | Cap 10, +8 per Khata, hard ceiling 60. |
-| 10 | The Sacred Valley | **Done** | Player SW, rival NE, river with two fords, marsh, dividing forest with passages, three springs (one exposed), clearing with the spirit, idol on a hill. |
-| 11 | Rival clan | **Done** | Same models, clan-coloured. AI gathers, trains, builds Khatas, expands to the exposed spring after minute 8, defends its home, raids from minute 5 in growing waves. |
-| 12 | Forest Spirit | **Done, plus** | Guards the clearing, leashes back home, heals when idle, ground slam splashes damage. Killing it pays +150 Wind +75 Rain (not in the doc). |
-| 13 | Objectives | **Done** | The nine sequential objectives, exactly as listed. |
-| 14 | Combat model | **Done** | HP, damage, cooldown, range, speed, supply only. Two multipliers the doc implies: Bear ×3 vs buildings, Deer ×2.2 vs ritualists, Streletz ×0.35 vs buildings. |
-| 15 | Controls | **Done, plus** | Classic RTS mouse/keys, plus Cmd/Ctrl+click as command, double-click type select, control groups, idle-worker key, rally points, touch controls. |
-| 16 | Camera | **Done** | Fixed-yaw perspective camera; zoom tilts from top-down (far) to ~34° (near), WC3-style. No rotation. |
-| 17 | Visual direction | **Done (this week)** | Rebuilt to WC3-era painted low-poly. See §5 for what still reads weak. |
-| 18 | Animation | **Done, procedural** | Wind Dance and Rain Rite are the two richest animations; walk, attack, build, idle, death exist for every unit. No hand-keyed frames. |
-| 19 | Audio | **Done** | Dancers add layers to one settlement rhythm; Zhercas add chant, water, thunder. Combat SFX synthesised. |
-| 20 | UI | **Done** | Resource bar, selection panel with portrait/HP/commands, objectives, minimap, toasts. |
-| 21 | Economy numbers | **Done** | Verbatim from the doc's table. |
-| 22 | Match flow | **Roughly** | The AI's timings target the doc's minute-by-minute flow; nobody has measured real sessions against it. |
-| 23 | Victory / defeat | **Done** | Rival Grod down = victory. Defeat when your Grod is down and you cannot rebuild it (no Vietra or <300 Wind). |
-| 24 | Explicit exclusions | **Respected** | None of the excluded features were built. |
-| 25 | MVP checklist | **All 12 items** | See the opening summary. |
+| 3 | Core loop | **Done** | Gather Wind → Rain → build → train → explore → fight → expand. |
+| 4 | Wind and Rain | **Done** | 1 Wind/s per dancing Vietra, 1 Rain/s per Zherca at a Zdroy; both interrupted by combat. |
+| 5 | Starting state | **Done** | 1 Grod, 3 Vietras dancing, 1 Zherca, 50 Wind, 0 Rain (skirmish and Mission 1). |
+| 6 | Six units | **Done** | All six at the doc's costs and supply. |
+| 7 | Baba | **Done** | Trained at the Svety Gai (150 W / 125 R, supply 2) once the campaign unlocks her (Mission 2). Second Sight and the Ash Ward. |
+| 8 | Five buildings | **Done** | Grod, Khata, Zbroynia (War Hall), Zdroy (Rain Shrine, at a spring), Svety Gai (Sacred Grove). Renamed per the blueprint. |
+| 9 | Population | **Done** | Cap 10, +8 per Khata, ceiling 60. |
+| 10 | The Sacred Valley | **Done** | Mission 1 and skirmish map. Maps are now data (`game/maps/*.js`); five exist. |
+| 11 | Rival clan | **Done** | Gathers, builds, expands, defends, raids. Difficulty scales waves, caps and intervals. Missions switch it between modes (skirmish, passive, defend, raid, hold, off). |
+| 12 | Forest Spirit | **Done, plus** | The Leshy warns intruders, then fights; can be **Offered** to (75 W / 25 R) and then withdraws the root walls that close its clearing. Killing it releases Leshonki and marks the campaign. |
+| 13 | Objectives | **Done** | The nine objectives in skirmish and Mission 1; every mission has its own list (with optional and hidden ones). |
+| 14 | Combat model | **Done** | HP, damage, cooldown, range, speed, supply; a few multipliers (Bear vs buildings, Deer vs ritualists, Streletz vs buildings, the dead in darkness, civilians take ×0.4). |
+| 15 | Controls | **Done, plus** | Classic RTS, Cmd/Ctrl+click as command, groups, idle key, rally points, touch. Ritual targeting mode with hotkeys (N Wake, C Consecrate, F Offer, M Mend, R Ward, T Sight). |
+| 16 | Camera | **Done** | Fixed yaw; zoom tilts from top-down to ~34°, WC3-style. |
+| 17 | Visual direction | **Done** | WC3-era painted low-poly. 30 asset modules. |
+| 18 | Animation | **Procedural** | Dance, rite, build, walk, attack, idle, death, fall/rise for story units. No hand-keyed frames. |
+| 19 | Audio | **Done** | The economy is the soundtrack; combat, construction and thunder cues; raise/rumble/thunderclap added for the campaign. |
+| 20 | UI | **Done** | Resource bar with clock (☀/☾ when day/night is on), selection panel, objectives, minimap, toasts, dialogue box, mission stage screens, pause menu. |
+| 21 | Economy numbers | **Done** | As in the doc. |
+| 22 | Match flow | **Roughly** | Not measured against real sessions. |
+| 23 | Victory / defeat | **Done** | Skirmish: rival Grod down / own Grod down with no way back. Missions: scripted. |
+| 24 | Explicit exclusions | **Respected** | |
+| 25 | MVP checklist | **All 12 items** | |
 | 26 | The two tests | **Not run** | See §6. |
-| 27 | Next milestone | **Not started** | |
+| 27 | Next milestone | **Done** (as the blueprint's campaign) | See §3. |
 
 ---
 
-# 3. What is in the build, in detail
+# 3. Status against the campaign blueprint
 
-## Economy
-- Vietras dance in two rings in front of their Grod (8 + 12 slots, each unit keeps a stable
-  spot). Ordering a dancer anywhere stops her income; combat interrupts a ritual for 4 s.
-- Rain Shrines hold **3** Zhercas each. A spring with a shrine on it is removed from the map
-  until the shrine dies; the rival starts with the NE spring already built.
-- Building: Vietras build Grod, Khata, War Hall; Zhercas build Rain Shrine and Sacred Grove.
-  Cost is paid on placement, refunded if cancelled; the builder walks to the site and the
-  building grows while she works. A Vietra who was dancing goes back to the circle afterwards.
-- Training queues (max 5), cancellable with refund; rally points that understand context
-  (rally on the Grod = new Vietras dance, on a shrine = new Zhercas perform the rite, on an
-  enemy = attack).
-- Supply: 10 base, +8 per built Khata, cap 60.
+## Campaign shell (blueprint §19–21, §42)
+- Title screen with Campaign (continue or new; Story / Standard / Hard) and Skirmish. Progress,
+  flags, the Dola choice and a per-mission checkpoint live in `localStorage`.
+- One page load is one mission. Each mission is a module of async **phases**; entering a phase
+  saves a checkpoint (`rt.phase(id)`), so restarting a mission resumes at the last phase with
+  the world (units, buildings, sites, walls, flags, fog, weather, water, day/night) restored.
+- Pause (Esc / P / menu button) with resume, restart from checkpoint, restart mission, title.
+- Mission stages: intro card with a speaker portrait and premise; end card with a summary of the
+  mission's choices, statistics and, after Missions 3 and 4, the **Dola** choice (Stribog /
+  Mokosh, then Perun / Veles). Dola effects are applied to the rules in later missions (Wind
+  rate, Zdroy slots, Mend cost, Offer cost, Khata HP, Jelenik sight, Vitez first strike, arrows
+  vs spirits, Baba sight, Ward duration).
+- In-mission dialogue: a bottom box with a rendered portrait, name and title; auto-advances,
+  Space / Enter / click skips a line; the game keeps running behind it.
+- Working character names: Radomir (Zherca), Dobrogost (Vitez), Milena (Vietra), Baba Ostra,
+  Chetvertak (rival Zherca). Story characters fall for 12 s and rise instead of dying.
 
-## Units (all six)
-Each has HP, damage, cooldown, range, speed, sight, supply, and a procedural rig. Idle military
-units auto-acquire enemies in sight and chase a limited distance, then return. Ranged units
-shoot a visible arrow. Units path on a 2 m grid with re-pathing, separation and a stuck check;
-they form a loose square when a group is moved.
+## Systems (blueprint §30–41)
+- **Rituals** as a targeting mode on ritualists: Wake (idol), Consecrate (mound, corpse, Bound
+  Zdroy, idol), Offer (spirit, ring, idol; 75 W / 25 R), Mend (continuous, on a building), Ash
+  Ward and Second Sight (Baba). Combat interrupts them.
+- **Raise**: construction starts with a founding stake; the building's parts rise from the
+  ground (stone) or descend (timber), converge in motes and finish with a blessing.
+- **Day / night** with an hour clock, sunset and dawn events, a moon so night stays readable,
+  sight reduced at night.
+- **Corpses and the unquiet dead**: every fallen human leaves a marker; at night, outside a Ward,
+  markers rise as Upiry; restless burial mounds raise them until consecrated; Strigi hunt
+  ritualists after dark.
+- **Weather**: storm volumes that wander a path, multiply Rain under them (×2.75) and starve it
+  outside (×0.25 on the Long Valley), reduce sight, and strike telegraphed lightning.
+- **Binding**: a rival Zdroy turned Bound blackens the ground and gives up Drowned Upiry until
+  consecrated or destroyed.
+- **Sites**: idols (sleeping / awake), burial mounds (restless / at peace), Vila rings
+  (sleeping / appeased), declared per map.
+- **Forest paths** that a mission can open and close (blocked regions plus root-wall props).
+- **Spirits and creatures** with their own brains: Leshy (territory, patience, offering,
+  leash), Leshonok (ambush, hunt), Upir, Drowned Upir, Striga (leap), **Ognik** (keeps out of
+  reach, leads toward a point, false minimap lights, vanishes when struck), **Vila** (dances
+  in her ring, dances intruders to death, mends friends once appeased), **Vodnik** (fast near
+  water, Drag Under pulls and stuns), **Rusalka** (Song slows and pulls a step), convoy
+  families (flee, never fight, never auto-targeted).
+- **Rising water**: one level for the map; the sheet lifts, low ground becomes impassable,
+  anyone standing there is pushed to dry ground, buildings under it are wrecked.
 
-## Buildings (all five)
-Footprints as specified (Grod 11 m, Khata 5, War Hall 9×7, Shrine 5, Grove 9). Buildings block
-the path grid, wear the ground under them, have HP, collapse when killed (units inside the
-queue are refunded), and swap clan colour.
+## The five missions (blueprint §25–29)
+| # | Mission | Map | Beats implemented |
+|---|---|---|---|
+| 1 | The First Rain | Sacred Valley | Settle, arm, first Zdroy, valley contest, the Leshy (offer or fight), the idol begins to wake. |
+| 2 | The Dead Do Not Sleep | Burial Vale | A silent Grod at 42% HP, a hamlet of the dead, first sunset, the Baba arrives at dawn and is unlocked, the long night with Strigi and Upir waves, consecrate the Great Mound by dawn. |
+| 3 | The Wandering Storm | Long Valley | A storm walks between four dry springs; Zdroy under it or starve; the rival Binds a spring; the drowned come up; the storm settles on the middle spring; first Dola choice. |
+| 4 | The Black Grove | Black Grove | No base, a ritual reserve only; wake three idols; the way back closes and an Ognik leads to a Leshonok ambush; a Vila on the only way in; the Great Leshy at the heart — pay, fight, or be vouched for by both Vilas; second Dola choice. |
+| 5 | The Drowned Road | Drowned Road | Three family carts down a river valley; the water rises on its own clock and drowns the low road; a dry camp with an optional temporary Grod; Drowned Upiry out of the flood; a rival family at the Vodnik's ford to save or leave; the last ford against the rising water; the Zmey in the storm. |
 
-## Map
-180 × 180 m heightfield. River with two fords, marsh ponds, a forest band with two passages,
-the spirit's clearing in the centre, a hill with the idol in the SW. Fog of war: unexplored is
-black, explored-but-unseen is dimmed, vegetation dims with it. The minimap shows terrain,
-fog and unit dots.
-
-## Rival clan AI
-Ticks once a second. Keeps its dancers dancing and its Zhercas at shrines; trains up to five
-Vietras and enough Zhercas for its shrines; builds Khatas when supply runs short; builds a Grove
-after minute 6; expands to the exposed central spring after minute 8 with an escort; trains a
-mix of Streletz / Vitez / Deer (and Bears from the Grove) up to an army cap that grows with the
-clock (4 + 1.2 per minute, max 16); pulls its home army onto anything that hits it near home;
-raids from minute 5 in waves of 3, 5, 7, 9, 10 every ~2.5–3 min through alternating forest
-passages, aimed at the player's most exposed building.
-
-## Controls
-Laptop: click / drag-box / double-click type / Shift add; right-click (or Cmd/Ctrl+click, or
-two-finger click) to move, attack, dance (on Grod), rite (on shrine), rally (on own building);
-Ctrl+1–9 groups, `.` idle worker, F2 army, Space home, WASD / arrows / screen edges / wheel;
-Escape. Phone: tap, double-tap, long-press for command, camera stick, pinch zoom, BOX / ARMY /
-IDLE / HOME buttons. Hotkeys on every command button.
-
-## Presentation
-- Models: WC3-style lofted low-poly with one hand-painted atlas per character (one draw call
-  per unit) and shared painted textures for buildings and vegetation. Team colour is a painted
-  mask multiplied by the clan colour.
-- Lighting: single sun with cascaded shadows, warm ground bounce, sky fill, aerial haze, light
-  bloom; blob shadows under units.
-- Effects: wind motes circling dancers, a rain cloud and splashes over active shrines, dust on
-  building sites, blood, arrows, collapse dust, selection rings, health bars, order markers.
-- Audio: the economy is the soundtrack (frame drum, bells, clave and voice per dancer; chant,
-  water, drum and thunder per ritualist); axe, bow, hit, shout, roar, spirit, build knock,
-  objective, victory and defeat cues.
+Campaign flags recorded for later dialogue: Leshy appeased / slain (M1, M4), Baba joined (M2),
+saw Binding / unbound the spring (M3), Leshy pact / Vila friends (M4), rescued the rival family
+(M5); the two Dola choices.
 
 ---
 
 # 4. What is NOT there yet
 
-Against the doc:
-- **Nothing from section 27.** No Baba, no active rituals, no other creatures, no day/night,
-  weather, second map, faction identity, upgrades, story.
-- **No balance pass.** Every number is the doc's placeholder or a first guess (§7). Nobody has
-  tuned time-to-first-army, raid pressure, or how punishing an interrupted dance is.
-- **No playtesting.** The doc's two key questions (§26) are unanswered.
-- **The landmark idol is decoration.** It glows and sparkles, blocks pathing and is hidden by
-  fog, but it cannot be selected or interacted with. The doc only asks for "one mysterious
-  supernatural landmark", so this is not a gap against the doc, but it is the obvious hook for
-  the "supernatural interaction" the doc wants next.
-- **No scoring or end-of-match statistics** beyond a victory / defeat screen (the doc says none
-  is needed).
-- **No settings, save, pause, difficulty or restart-in-place.** Reload the page to play again.
-- **No hand-authored animation.** Everything is procedural (sine-based) on the asset's joints;
-  it reads at RTS distance and is not meant to survive close-ups.
-- **Combat animations are secondary**, as the doc allows: melee is a swing with a timed hit,
-  ranged is a draw and a flying arrow. No hit reactions.
-- **One opponent behaviour.** The AI has no difficulty levels and does not adapt to the
-  player beyond defending and retargeting raids.
-
-Beyond the doc (things that exist but were not asked for): fog of war, rally points, control
-groups, idle-worker selection, the spirit's reward, the phone controls, the model workshop.
+- **Playtesting.** Nothing has been in front of a player. Every mission was driven through its
+  phases in a browser by script and watched; that proves the scripts run, not that they are fun,
+  clear or fair.
+- **Balance.** Wave sizes, timers, HP, ritual costs and the reserves handed out in Missions 4
+  and 5 are single guesses.
+- **Voice and music.** Dialogue is text over a portrait. The soundtrack is still the economy.
+- **Hand-keyed animation.** Everything is procedural. The Vila and Rusalka use the Vietra's
+  dance; the Vodnik and the family cart have no bespoke motion.
+- **Blueprint Phase G polish**: cinematic camera moves beyond focus-and-hold, weather-reactive
+  music, a mission-select map, an ending card beyond the Zmey dialogue.
+- **Deferred creatures**: Mora and Bolotnik are not built; the Zmey exists only as a storm and
+  dialogue.
+- **Campaign-wide unlocks are minimal**: the Baba is the only unit unlocked by story; Vila
+  friendship is a flag, not a trainable unit.
+- **Skirmish** is unchanged from the first playable: no rituals there beyond the Leshy offering,
+  no day/night or weather.
 
 ---
 
 # 5. Known rough edges
 
-Art (just rebuilt; a second pass is expected):
-- Faces are painted for RTS distance; close-ups of the workshop "Face" view show them as
-  simple.
-- The Streletz's bow ends up diagonal across his body in the draw pose.
-- The Forest Spirit is dark and reads mostly by its glowing eyes and core.
-- Building textures were darkened once after an in-game check; the full sun still bleaches
-  thatch and daub at noon, and the ground texture is flatter than the buildings.
-- Idle units stand still apart from breathing; there are no idle fidgets.
+Art:
+- Faces are painted for RTS distance and look simple in close-up.
+- The Streletz's bow sits diagonally across his body in the draw pose.
+- The Forest Spirit is dark and reads by its glowing eyes.
+- The Ognik and Vila are semi-transparent and can sort oddly against water and each other.
+- The family cart is one static prop that slides; its people do not walk.
 
 Engine:
-- Painting all textures at load takes a few seconds on first start; there is no asset cache.
-- Pathing is grid-based; units can jostle in doorways and occasionally give up on a
-  blocked path (the stuck check drops the order after ~4 s).
-- Melee units attacking a building cluster on the nearest face.
-- `DANCE_RADIUS` (18 m) is defined in the config but never enforced: a Vietra ordered to dance
-  walks to her Grod's circle from anywhere on the map.
-- Phone performance has not been re-measured since the art rebuild (the previous build ran on
-  a phone at a reduced tier).
-- Chrome pauses the game entirely when the tab is hidden (no catch-up on return).
+- Painting all textures at load takes several seconds; there is no asset cache.
+- Grid pathing: units jostle in doorways and at forest gaps; a unit whose path is blocked
+  gives up after ~4 s. Scripted root walls close 13 m squares, which can strand a unit inside.
+- When the water rises, units in the flood are teleported to the nearest dry cell rather than
+  wading out.
+- A hidden tab throttles the frame loop; `?bg=1` keeps the simulation stepping while hidden
+  (used for testing).
+- The minimap occasionally renders blank in a hidden tab.
+- Checkpoint restore rebuilds the world from data; a phase written to assume a fresh world
+  may double-spawn if it does not check `ctx.restored` (the five shipped missions do).
 
 Process:
-- The 404 recipe's harness (`verify.mjs`, the three-candidate process) is not in this repo;
-  the `assets/*.expect.json` files are the only trace of it. Assets are now judged in the
-  workshop instead.
-- No automated tests.
+- No automated tests. Each mission was verified by driving `window.__DBG__` from the console.
 
 ---
 
 # 6. Questions for the designers
 
-1. **Run the two tests.** Section 26 asks whether watching ritualists gather feels like an
-   economy, and whether the look is memorable. Suggested protocol: five players, one match
-   each, no explanation beyond the on-screen objectives, record session length and where each
-   player stalled; ask the two questions verbatim afterwards.
-2. **Is the ritual economy readable enough?** Today a dancer's income is shown only by the
-   resource counter ticking and the sound layers. Options: a per-dancer floating "+1", a ring
-   fill around the Grod, or nothing (the doc wants little text). Decide before playtests.
-3. **What does the idol do?** Options that fit the next milestone: (a) a fourth Rain site a
-   Zherca can perform the rite at; (b) a contested blessing (+25% Wind for whoever holds the
-   hill), which gives the raids a natural target; (c) a one-shot boon that "wakes" it.
-4. **Raid pressure.** The first patrol arrives at minute 5 with three units; waves grow to ten.
-   Too gentle for RTS veterans, possibly too hard for the doc's target player. Decide the target
-   player before tuning.
-5. **Rain scarcity.** With three springs and 3 slots each, Rain is capped at 9/s per side
-   before contest. Is that the intended pressure, or should the exposed spring be the only
-   second source?
-6. **Camera lock.** Yaw is fixed; zoom tilts the camera. Keep it locked (doc) or allow a small
-   rotation for phones?
-7. **Art direction sign-off.** The WC3-style pass is the new baseline (see the workshop). Which
-   of the rough edges in §5 matter before playtests, and does Vietra read as intended?
-8. **Next milestone scope.** The doc says the first expansion is supernatural interaction. The
-   cheapest starts from what exists: the idol, the spirit's reward, and the Zherca's rite.
+1. **Run the two tests** (design doc §26) on Mission 1 and skirmish first; then a full campaign
+   run with the clock on. Record where each player stalls and which objective text they misread.
+2. **Difficulty defaults.** Story / Standard / Hard scale waves and Wind. Is Standard the
+   right default for the pitch, or should the pitch build force Story?
+3. **The Leshy choice (M1 and M4).** Offering costs 75 W / 25 R; fighting costs the forest's
+   anger. Is "pay or fight" enough, or does the vouching route (befriend both Vilas) need to be
+   signposted earlier in Mission 4?
+4. **Mission 4's reserve.** 260 Wind / 180 Rain, no income, three Wake rites free and two Offers
+   at 75/25. That leaves exactly one Offer for the Leshy if both Vilas are paid. Intended?
+5. **The rival family.** Saving it is optional and only sets a flag. Should it change anything
+   playable (a rival unit joins, the rival AI holds fire later), or stay a moral beat?
+6. **Rising water** teleports units to dry ground. Should it drown them instead (harsher,
+   clearer), or slow them and damage the carts?
+7. **Dola effects** are small rule modifiers. Do they read? Should the end card of Mission 5
+   show which ones were used?
+8. **Which of the §5 rough edges block the pitch video.**
 
 ---
 
 # 7. The numbers as built
 
-Units (`game/src/config.js`). Heights are display heights (about 1.45× life size, the RTS
-convention). Range in metres, cooldown in seconds.
+Units (`game/src/config.js`). Range in metres, cooldown in seconds.
 
 | Unit | Wind | Rain | Supply | Train | HP | Dmg | CD | Range | Speed | Sight | Notes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | Vietra | 50 | 0 | 1 | 12 s | 60 | 3 | 1.5 | 1.4 | 3.4 | 12 | builder, dances |
-| Zherca | 50 | 0 | 1 | 14 s | 70 | 4 | 1.5 | 1.4 | 3.2 | 12 | builder, rite |
+| Zherca | 50 | 0 | 1 | 14 s | 70 | 4 | 1.5 | 1.4 | 3.2 | 12 | builder, rite, rituals |
 | Streletz | 50 | 0 | 1 | 11 s | 85 | 10 | 1.35 | 13 | 3.6 | 16 | ranged, ×0.35 vs buildings |
 | Vitez | 100 | 25 | 2 | 18 s | 280 | 21 | 1.6 | 2.0 | 2.9 | 13 | |
-| Deer Rider | 50 | 50 | 1 | 16 s | 140 | 12 | 1.1 | 2.4 | 7.2 | 24 | ×2.2 vs ritualists |
-| Bear | 100 | 0 | 2 | 22 s | 440 | 26 | 1.9 | 2.6 | 2.5 | 13 | ×3 vs buildings, needs Grove |
-| Forest Spirit | — | — | — | — | 1500 | 48 | 2.4 | 3.6 | 2.2 | 15 | neutral, heals, slam splash |
+| Jelenik (Deer Rider) | 50 | 50 | 1 | 16 s | 140 | 12 | 1.1 | 2.4 | 7.2 | 24 | ×2.2 vs ritualists |
+| Medved (Bear) | 100 | 0 | 2 | 22 s | 440 | 26 | 1.9 | 2.6 | 2.5 | 13 | ×3 vs buildings, Svety Gai |
+| Baba | 150 | 125 | 2 | 24 s | 90 | 6 | 1.5 | 1.8 | 3.2 | 16 | Second Sight, Ash Ward, Wake, Offer |
+| Leshy | — | — | — | — | 1500 | 48 | 2.4 | 3.6 | 2.2 | 15 | neutral; Great Leshy 2600 HP |
+| Leshonok | — | — | — | — | 90 | 9 | 1.0 | 1.6 | 5.4 | 14 | |
+| Upir | — | — | — | — | 120 | 12 | 1.4 | 1.6 | 2.8 | 14 | stronger in the dark |
+| Drowned Upir | — | — | — | — | 150 | 14 | 1.5 | 1.6 | 2.5 | 14 | |
+| Striga | — | — | — | — | 110 | 18 | 1.2 | 1.8 | 5.2 | 20 | leaps |
+| Ognik | — | — | — | — | 40 | 0 | — | — | 4.2 | 18 | vanishes when struck |
+| Vila | — | — | — | — | 420 | 28 | 2.4 | 4.0 | 4.0 | 16 | area dance, slows |
+| Vodnik | — | — | — | — | 520 | 24 | 1.8 | 2.2 | 2.4 (×2.4 near water) | 16 | Drag Under every 3rd hit |
+| Rusalka | — | — | — | — | 150 | 10 | 1.4 | 1.8 | 3.0 | 16 | Song: slow r 14, pull r 8 |
+| Family | — | — | 0 | — | 160 | 0 | — | — | 2.3 | 10 | takes ×0.4 damage |
 
 Buildings.
 
 | Building | Wind | Rain | Build | HP | Footprint | Trains / does |
 |---|---:|---:|---:|---:|---:|---|
-| Grod | 300 | 0 | 45 s | 2200 | 11 m | Vietra, Zherca; dance site; loss condition |
+| Grod | 300 | 0 | 45 s | 2200 | 11 m | Vietra, Zherca; dance site |
 | Khata | 100 | 0 | 20 s | 420 | 5 m | +8 supply |
-| War Hall | 150 | 0 | 30 s | 750 | 9×7 m | Streletz, Vitez, Deer Rider |
-| Rain Shrine | 75 | 0 | 16 s | 380 | 5 m | at a spring; 3 Zherca slots |
-| Sacred Grove | 150 | 50 | 30 s | 650 | 9 m | Bear |
+| Zbroynia | 150 | 0 | 30 s | 750 | 9×7 m | Streletz, Vitez, Jelenik |
+| Zdroy | 75 | 0 | 16 s | 380 | 5 m | at a spring; 3 Zherca slots |
+| Svety Gai | 150 | 50 | 30 s | 650 | 9 m | Medved, Baba |
 
-Constants: start 50 Wind / 0 Rain / supply 10 (+8 per Khata, max 60); 1 Wind/s per dancer,
-1 Rain/s per ritualist; combat interrupts a ritual for 4 s; the spirit's reward is 150 Wind + 75 Rain; rival starts with a Grod,
-War Hall, Khata, shrine, 4 Vietras, 1 Zherca, 3 Streletz, 1 Vitez and 120 Wind; first raid at
-minute 5, then every 150–190 s.
+Rituals: Wake 8 s free; Consecrate 6 s free; Offer 5 s, 75 W / 25 R; Mend continuous, Wind per
+second; Ash Ward and Second Sight (Baba) with cooldowns. Day: 14 s per hour in Mission 2.
+Storm: ×2.75 Rain under it. Water: rises ~0.045 m/s to +0.95 m, holds 60–120 s, falls.
 
 ---
 
 # 8. Where things live
 
-- `game/index.html`, `game/src/main.js` — boot, loading, the frame loop.
-- `game/src/game.js` — rules: economy, orders, building, combat, fog, objectives, end.
-- `game/src/ai.js` — the rival clan and the starting positions.
-- `game/src/ui.js` — camera, input (mouse, keyboard, touch), selection, panel, minimap.
-- `game/src/config.js` — every number above.
-- `game/src/anim.js` — procedural poses; `game/src/fx.js` — particles; `game/src/audio.js`.
-- `game/src/terrain.js` — the valley, path grid, fog colouring; `game/src/path.js` — A*.
-- `game/assets/*.js` — the 19 models; `game/paint.js`, `game/charkit.js`, `game/buildkit.js`
-  — the painting and modelling kits; `STYLE.md` — the locked look.
-- `game/workshop.html` — the model viewer.
-- `game-design-doc.md` — the design; `README.md` — how to play.
+- `game/index.html`, `game/src/main.js` — boot, title, mission loading, stages, pause, the frame loop.
+- `game/src/game.js` — rules: economy, orders, building, combat, fog, sites, rituals, the brains.
+- `game/src/mission-runtime.js` — phases, objectives, checkpoints, spawn/order/region helpers.
+- `game/src/campaign.js` — progress, difficulty, Dola; `game/src/dialogue.js` — the dialogue box.
+- `game/src/systems.js` — hub for `daynight.js`, `weather.js`, `corpses.js`, `water.js`, wards, floods.
+- `game/src/rituals.js`, `game/src/construction.js` (Raise), `game/src/ai.js`, `game/src/ui.js`.
+- `game/src/terrain.js` — maps as data (`game/maps/*.js`), path grid, water line, fog.
+- `game/missions/index.js` + `m01`–`m05` — the campaign.
+- `game/assets/*.js` — 30 models; `game/paint.js`, `game/charkit.js`, `game/buildkit.js` — the kits.
+- `game/workshop.html` — the model viewer. `STYLE.md` — the look.
+- `game-design-doc.md`, `WIND-AND-RAIN-CAMPAIGN-BLUEPRINT.md` — the design; `README.md` — how to play.

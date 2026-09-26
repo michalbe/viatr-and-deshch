@@ -9,7 +9,9 @@ every 3D object in the game is Three.js code (`game/assets/*.js`). The look is e
 (Warcraft III, classic WoW): low-poly lofted models with hand-painted diffuse textures that are
 drawn onto canvases at load time by `game/paint.js`, so there are still no image files.
 
-**Play:** open `game/index.html` from any static host (it needs no build step).
+**Play:** open `game/index.html` from any static host (it needs no build step). The title offers the
+five-mission **Campaign** (with checkpoints, difficulties and the Dola choices) and a **Skirmish** on the
+Sacred Valley. `?mission=m04` jumps straight to a mission.
 **Look at the models:** open `game/workshop.html`: every unit, building and prop as the game builds
 them, with clan colour, painted atlas, poses, clay and wireframe modes.
 
@@ -22,8 +24,11 @@ them, with clan colour, painted atlas, poses, clay and wireframe modes.
 | camera | WASD, arrows, screen edges, wheel, minimap | camera stick, one-finger drag, pinch, minimap |
 | groups | Ctrl+1..9, then 1..9 | |
 
-Gather 100 Wind → build a Khata → a War Hall → train Streletz → raise a Rain Shrine at a Sacred Spring →
+Skirmish: gather 100 Wind → raise a Khata → a Zbroynia → train Streletz → raise a Zdroy at a Sacred Spring →
 gather Rain → train a Vitez → find the rival settlement → destroy its Grod.
+
+Rituals (select a Zherca or the Baba): **N** Wake an idol, **C** Consecrate a grave or a Bound Zdroy,
+**F** Offer to a spirit or a Vila ring, **M** Mend a building, **R** Ash Ward, **T** Second Sight.
 
 ## What is in it (design doc: `game-design-doc.md`)
 
@@ -36,11 +41,15 @@ gather Rain → train a Vitez → find the rival settlement → destroy its Grod
   guarding the central clearing, a four-faced stone idol, three Sacred Springs, fog of war.
 - A rival clan AI that gathers, trains, expands to the exposed spring, defends and raids from minute five.
 - Sequential tutorial objectives, victory and defeat.
+- The campaign (`WIND-AND-RAIN-CAMPAIGN-BLUEPRINT.md`): The First Rain, The Dead Do Not Sleep, The Wandering
+  Storm, The Black Grove, The Drowned Road. Day and night with the unquiet dead, the Baba, wandering storms,
+  Binding, no-base exploration with shifting forest paths, the Ognik, Vila rings, the Great Leshy, rising
+  water, the Vodnik and Rusalki, a convoy escort, and the Zmey on the horizon. Status: `PROTOTYPE-STATUS.md`.
 
 ## Layout
 
-- `game/` — the shipped folder. `assets/` holds the 19 asset modules (+ `.expect.json` sizes);
-  `src/` the engine; `paint.js` (canvas brushes), `charkit.js` (character lofts + atlas UVs) and
+- `game/` — the shipped folder. `assets/` holds the 30 asset modules (+ `.expect.json` sizes);
+  `src/` the engine; `maps/` the terrain definitions; `missions/` the campaign scripts; `paint.js` (canvas brushes), `charkit.js` (character lofts + atlas UVs) and
   `buildkit.js` (buildings and props on shared repeating textures) are the modelling kits;
   `assetlib.js`, `surfaces.js`, `rig.js` are copied from the recipe harness. `workshop.html` +
   `src/workshop.js` is the model viewer.
