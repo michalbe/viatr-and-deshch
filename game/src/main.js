@@ -132,7 +132,7 @@ function start() {
   if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) $('touch').classList.add('on');
   game.teams[0].wind = 50; game.teams[0].windTotal = 0; game.teams[0].rain = 0; game.teams[0].rainTotal = 0; game.time = 0;
   ui.refreshPanel(true); ui.renderObjectives();
-  ui.toast('Your Vietras dance for Wind. Build, train, and find the rival clan.', 'good');
+  ui.toast('Your Vietras dance for Wind. Raise, recruit, and find the rival Rodina.', 'good');
   sfx('objective');
 }
 $('startb').addEventListener('click', start);

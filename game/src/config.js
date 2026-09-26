@@ -6,6 +6,7 @@
 export const MAP = { size: 180, half: 90, cell: 2 };   // metres; grid is 90 x 90
 
 export const TEAM = { PLAYER: 0, RIVAL: 1, NEUTRAL: 2 };
+export const TEAM_NAME = ['Rodina', 'Rival Rodina', 'Wild'];
 export const TEAM_COLOR = [0xc0282d, 0x2d62b8, 0x6f8f3a];
 export const TEAM_HEX_IN_ASSETS = 0xc0282d;
 
@@ -27,18 +28,18 @@ export const UNITS = {
   zherca:   { name: 'Zherca',     title: 'Rain Priest',     asset: 'zherca',    wind: 50,  rain: 0,  supply: 1, time: 14, hp: 70,   dmg: 4,  cd: 1.5, range: 1.4, speed: 3.2, sight: 12, kind: 'econ',  radius: 0.59, height: 3.1, key: 'Z' },
   streletz: { name: 'Streletz',   title: 'Archer',          asset: 'streletz',  wind: 50,  rain: 0,  supply: 1, time: 11, hp: 85,   dmg: 10, cd: 1.35, range: 13, speed: 3.6, sight: 16, kind: 'mil',   radius: 0.59, height: 3.02, key: 'S', ranged: true, vsBuilding: 0.35 },
   vitez:    { name: 'Vitez',      title: 'Heavy Warrior',   asset: 'vitez',     wind: 100, rain: 25, supply: 2, time: 18, hp: 280,  dmg: 21, cd: 1.6, range: 2.0, speed: 2.9, sight: 13, kind: 'mil',   radius: 0.85, height: 3.38, key: 'X' },
-  deer:     { name: 'Deer Rider', title: 'Scout / Raider',  asset: 'deer_rider',wind: 50,  rain: 50, supply: 1, time: 16, hp: 140,  dmg: 12, cd: 1.1, range: 2.4, speed: 7.2, sight: 24, kind: 'mil',   radius: 1.17,  height: 5.44,  key: 'D', vsEcon: 2.2 },
-  bear:     { name: 'Bear',       title: 'Heavy Beast',     asset: 'bear',      wind: 100, rain: 0,  supply: 2, time: 22, hp: 440,  dmg: 26, cd: 1.9, range: 2.6, speed: 2.5, sight: 13, kind: 'beast', radius: 1.43,  height: 2.46,  key: 'B', vsBuilding: 3 },
-  spirit:   { name: 'Forest Spirit', title: 'Guardian of the Clearing', asset: 'forest_spirit', wind: 0, rain: 0, supply: 0, time: 0, hp: 1500, dmg: 48, cd: 2.4, range: 3.6, speed: 2.2, sight: 15, kind: 'spirit', radius: 1.82, height: 7.38 },
+  deer:     { name: 'Jelenik',    title: 'Deer Rider · Scout',  asset: 'deer_rider',wind: 50,  rain: 50, supply: 1, time: 16, hp: 140,  dmg: 12, cd: 1.1, range: 2.4, speed: 7.2, sight: 24, kind: 'mil',   radius: 1.17,  height: 5.44,  key: 'D', vsEcon: 2.2 },
+  bear:     { name: 'Medved',     title: 'Heavy Beast',     asset: 'bear',      wind: 100, rain: 0,  supply: 2, time: 22, hp: 440,  dmg: 26, cd: 1.9, range: 2.6, speed: 2.5, sight: 13, kind: 'beast', radius: 1.43,  height: 2.46,  key: 'B', vsBuilding: 3 },
+  spirit:   { name: 'Leshy', title: 'Guardian of the Forest', asset: 'forest_spirit', wind: 0, rain: 0, supply: 0, time: 0, hp: 1500, dmg: 48, cd: 2.4, range: 3.6, speed: 2.2, sight: 15, kind: 'spirit', radius: 1.82, height: 7.38 },
 };
 
 /** size = footprint in metres (square), used for the path grid and selection. */
 export const BUILDINGS = {
   grod:   { name: 'Grod',         title: 'Settlement',      asset: 'grod',          wind: 300, rain: 0,  time: 45, hp: 2200, size: 11, height: 9,   sight: 18, trains: ['vietra', 'zherca'], key: 'G', builtBy: ['vietra'] },
   khata:  { name: 'Khata',        title: '+8 Supply',       asset: 'khata',         wind: 100, rain: 0,  time: 20, hp: 420,  size: 5,  height: 5,   sight: 9,  trains: [], key: 'K', builtBy: ['vietra'], supply: 8 },
-  warhall:{ name: 'War Hall',     title: 'Military',        asset: 'war_hall',      wind: 150, rain: 0,  time: 30, hp: 750,  size: 9,  height: 7,   sight: 12, trains: ['streletz', 'vitez', 'deer'], key: 'W', builtBy: ['vietra'] },
-  shrine: { name: 'Rain Shrine',  title: 'Gathers Rain',    asset: 'rain_shrine',   wind: 75,  rain: 0,  time: 16, hp: 380,  size: 5,  height: 4.5, sight: 10, trains: [], key: 'R', builtBy: ['zherca'], atSpring: true },
-  grove:  { name: 'Sacred Grove', title: 'Beasts',          asset: 'sacred_grove',  wind: 150, rain: 50, time: 30, hp: 650,  size: 9,  height: 7,   sight: 12, trains: ['bear'], key: 'O', builtBy: ['zherca'] },
+  warhall:{ name: 'Zbroynia',     title: 'Warriors',        asset: 'war_hall',      wind: 150, rain: 0,  time: 30, hp: 750,  size: 9,  height: 7,   sight: 12, trains: ['streletz', 'vitez', 'deer'], key: 'W', builtBy: ['vietra'] },
+  shrine: { name: 'Zdroy',        title: 'Rain at a spring', asset: 'rain_shrine',   wind: 75,  rain: 0,  time: 16, hp: 380,  size: 5,  height: 4.5, sight: 10, trains: [], key: 'R', builtBy: ['zherca'], atSpring: true },
+  grove:  { name: 'Svety Gai',    title: 'Sacred grove',    asset: 'sacred_grove',  wind: 150, rain: 50, time: 30, hp: 650,  size: 9,  height: 7,   sight: 12, trains: ['bear'], key: 'O', builtBy: ['zherca'] },
 };
 
 /** The Sacred Valley. North is -Z. Player southwest, rival northeast. */
@@ -46,19 +47,19 @@ export const LAYOUT = {
   playerGrod: [-60, 60],
   rivalGrod: [60, -60],
   springs: [[-40, 71], [22, 18], [71, -36]],   // near player, exposed centre-east, near rival
-  clearing: [-4, -4],                          // the Forest Spirit's clearing
+  clearing: [-4, -4],                          // the Leshy's clearing
   idol: [-58, -52],                            // the mysterious landmark on a hill
 };
 
 export const OBJECTIVES = [
   { id: 'wind100',  text: 'Gather 100 Wind' },
-  { id: 'khata',    text: 'Build a Khata' },
-  { id: 'warhall',  text: 'Build a War Hall' },
-  { id: 'streletz3',text: 'Train 3 Streletz' },
-  { id: 'shrine',   text: 'Build a Rain Shrine' },
+  { id: 'khata',    text: 'Raise a Khata' },
+  { id: 'warhall',  text: 'Raise a Zbroynia' },
+  { id: 'streletz3',text: 'Recruit 3 Streletz' },
+  { id: 'shrine',   text: 'Raise a Zdroy at a spring' },
   { id: 'rain50',   text: 'Gather 50 Rain' },
-  { id: 'vitez',    text: 'Train a Vitez' },
-  { id: 'find',     text: 'Find the rival settlement' },
+  { id: 'vitez',    text: 'Recruit a Vitez' },
+  { id: 'find',     text: 'Find the rival Rodina' },
   { id: 'destroy',  text: 'Destroy the rival Grod' },
 ];
 

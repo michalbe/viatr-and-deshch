@@ -1,5 +1,5 @@
 /**
- * The Rival Clan (design doc section 11): gather, train, defend, raid, replace losses.
+ * The Rival Rodina (design doc section 11): gather, train, defend, raid, replace losses.
  * Deliberately simple and readable. Ticks once a second.
  */
 import { TEAM, LAYOUT, UNITS, BUILDINGS } from './config.js';

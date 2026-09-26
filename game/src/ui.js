@@ -40,7 +40,7 @@ export class UI {
     game.on('alarm', (t) => { this.toast('Your settlement is under attack!', 'bad'); sfx('alarm'); this.pings.push({ x: t.x, z: t.z, t: 3 }); });
     game.on('toast', (m) => this.toast(m));
     game.on('raid', () => {});
-    game.on('grodDown', (b) => { if (b.team === TEAM.PLAYER) this.toast('Your Grod has fallen! Rebuild it with a Vietra (300 Wind).', 'bad'); });
+    game.on('grodDown', (b) => { if (b.team === TEAM.PLAYER) this.toast('Your Grod has fallen! Raise it again with a Vietra (300 Wind).', 'bad'); });
     game.on('end', (r) => this.showEnd(r));
     game.on('built', (b) => this.toast(`${b.def.name} complete`, 'good'));
     this.resize();
@@ -183,7 +183,7 @@ export class UI {
     this.cancelMode();
     this.mode = { type: 'place', bt };
     this.showGhost(bt);
-    $('placehint').textContent = TOUCH ? `Tap where the ${def.name} should stand` : `Click to place the ${def.name}. Right-click or Esc to cancel.`;
+    $('placehint').textContent = TOUCH ? `Tap where the ${def.name} should rise` : `Click to place the ${def.name}. Right-click or Esc to cancel.`;
     $('placehint').classList.add('on');
     if (def.atSpring) { const s = this.g.springs.find((s) => !s.shrine && this.g.cellSeen(s.x, s.z)); if (s && TOUCH) this.ghostAt(s.x, s.z); }
     else if (TOUCH) this.ghostAt(this.target.x, this.target.y);
@@ -213,7 +213,7 @@ export class UI {
     const m = this.mode; if (!m || m.type !== 'place' || m.gx === undefined) return;
     const def = BUILDINGS[m.bt];
     const builder = this.ownUnits().filter((u) => def.builtBy.includes(u.ut)).sort((a, b) => Math.hypot(a.x - m.px, a.z - m.pz) - Math.hypot(b.x - m.px, b.z - m.pz))[0];
-    if (!builder) { this.toast(`Select a ${def.builtBy.map((k) => UNITS[k].name).join(' or ')} to build that`, 'bad'); this.cancelMode(); return; }
+    if (!builder) { this.toast(`Select a ${def.builtBy.map((k) => UNITS[k].name).join(' or ')} to raise that`, 'bad'); this.cancelMode(); return; }
     this.tryBuild(builder, m.bt, m.gx, m.gz);
     this.cancelMode();
   }
@@ -227,7 +227,7 @@ export class UI {
     const g = this.g, b = this.ownBuilding(), units = this.ownUnits();
     const cmds = [];
     if (b) {
-      if (!b.built) return [{ label: 'Building…', disabled: true }];
+      if (!b.built) return [{ label: 'Rising…', disabled: true }];
       for (const ut of b.def.trains) {
         const d = UNITS[ut];
         cmds.push({ label: d.name, key: d.key, icon: this.portraits[ut], cost: d, tip: `${d.name}: ${d.title}`, act: () => { const r = g.train(b, ut); if (!r.ok) { this.toast(r.why, 'bad'); sfx('deny'); } else sfx('click'); this.refreshPanel(true); } });
@@ -240,13 +240,13 @@ export class UI {
     if (has('vietra')) {
       cmds.push({ label: 'Dance', key: 'Q', glyph: ICON.dance, tip: 'Wind Dance at the Grod: +1 Wind per second each', act: () => { g.dance(units); sfx('click'); } });
       if (units.every((u) => u.ut === 'vietra')) for (const bt of ['khata', 'warhall', 'grod']) {
-        const d = BUILDINGS[bt]; cmds.push({ label: d.name, key: d.key, icon: this.portraits[bt], cost: d, tip: `${d.name}: ${d.title}`, act: () => this.startPlace(bt) });
+        const d = BUILDINGS[bt]; cmds.push({ label: 'Raise ' + d.name, key: d.key, icon: this.portraits[bt], cost: d, tip: `Raise ${d.name}: ${d.title}`, act: () => this.startPlace(bt) });
       }
     }
     if (has('zherca')) {
-      cmds.push({ label: 'Rite', key: 'E', glyph: ICON.rite, tip: 'Rain Rite at a Rain Shrine: +1 Rain per second each', act: () => { const z = units.filter((u) => u.ut === 'zherca'); if (!g.freeShrine(0, z[0])) { this.toast('Build a Rain Shrine at a Sacred Spring first', 'bad'); sfx('deny'); } else { g.rite(z); sfx('click'); } } });
+      cmds.push({ label: 'Rite', key: 'E', glyph: ICON.rite, tip: 'Rain Rite at a Zdroy: +1 Rain per second each', act: () => { const z = units.filter((u) => u.ut === 'zherca'); if (!g.freeShrine(0, z[0])) { this.toast('Raise a Zdroy at a Sacred Spring first', 'bad'); sfx('deny'); } else { g.rite(z); sfx('click'); } } });
       if (units.every((u) => u.ut === 'zherca')) for (const bt of ['shrine', 'grove']) {
-        const d = BUILDINGS[bt]; cmds.push({ label: d.name, key: d.key, icon: this.portraits[bt], cost: d, tip: `${d.name}: ${d.title}`, act: () => this.startPlace(bt) });
+        const d = BUILDINGS[bt]; cmds.push({ label: 'Raise ' + d.name, key: d.key, icon: this.portraits[bt], cost: d, tip: `Raise ${d.name}: ${d.title}`, act: () => this.startPlace(bt) });
       }
     }
     if (units.some((u) => u.def.kind !== 'econ')) cmds.push({ label: 'Attack', key: 'A', glyph: ICON.attack, tip: 'Attack-move: fight anything on the way', act: () => { this.cancelMode(); this.mode = { type: 'amove' }; $('placehint').textContent = TOUCH ? 'Tap where to attack-move' : 'Click where to attack-move'; $('placehint').classList.add('on'); } });
@@ -266,14 +266,14 @@ export class UI {
     let html = '', queueHtml = '';
     if (sel.length === 1) {
       const d = e.def;
-      const owner = e.team === TEAM.PLAYER ? '' : e.team === TEAM.RIVAL ? ' <span class="foe">Rival Clan</span>' : ' <span class="neutral">Neutral</span>';
+      const owner = e.team === TEAM.PLAYER ? '' : e.team === TEAM.RIVAL ? ' <span class="foe">Rival Rodina</span>' : ' <span class="neutral">Wild</span>';
       html += `<div class="nm">${d.name}${owner}</div><div class="tt">${d.title || ''}</div>`;
       html += `<div class="hp"><i style="width:${(e.hp / e.maxHp * 100).toFixed(0)}%"></i><b>${Math.ceil(e.hp)} / ${e.maxHp}</b></div>`;
       if (e.kind === 'unit') {
-        const st = e.anim.mode === 'dance' ? 'Dancing: +1 Wind/s' : e.anim.mode === 'rite' ? 'Rain Rite: +1 Rain/s' : e.order?.type === 'build' ? 'Building' : e.interruptT > 0 ? 'Interrupted by combat' : e.order?.type === 'attack' ? 'Fighting' : e.order ? 'Moving' : 'Idle';
+        const st = e.anim.mode === 'dance' ? 'Dancing: +1 Wind/s' : e.anim.mode === 'rite' ? 'Rain Rite: +1 Rain/s' : e.order?.type === 'build' ? 'Raising' : e.interruptT > 0 ? 'Interrupted by combat' : e.order?.type === 'attack' ? 'Fighting' : e.order ? 'Moving' : 'Idle';
         html += `<div class="st">${st} · dmg ${d.dmg} · range ${d.range}</div>`;
       } else {
-        if (!e.built) html += `<div class="st">Under construction: ${(e.progress * 100) | 0}%</div>`;
+        if (!e.built) html += `<div class="st">Rising: ${(e.progress * 100) | 0}%</div>`;
         else if (e.bt === 'shrine') html += `<div class="st">Zhercas: ${e.workers.length} / 3 · +${e.workers.filter((w) => w.anim.mode === 'rite').length} Rain/s</div>`;
         else if (e.bt === 'grod') html += `<div class="st">Dancers: ${(e.dancers || []).filter((d) => !d.dead && d.anim.mode === 'dance').length} · +${(e.dancers || []).filter((d) => !d.dead && d.anim.mode === 'dance').length} Wind/s</div>`;
         else if (e.bt === 'khata') html += `<div class="st">+8 Supply</div>`;
@@ -342,12 +342,12 @@ export class UI {
   renderObjectives() {
     const i = this.g.objective;
     const cur = OBJECTIVES[i];
-    $('objs').innerHTML = cur ? `<div class="ot">Objective <small>${i + 1}/${OBJECTIVES.length}</small></div><div class="oc">${cur.text}</div>` : '<div class="oc">The Sacred Valley is yours</div>';
+    $('objs').innerHTML = cur ? `<div class="ot">Objective <small>${i + 1}/${OBJECTIVES.length}</small></div><div class="oc">${cur.text}</div>` : '<div class="oc">The Sacred Valley answers to Rodina</div>';
   }
   showEnd(r) {
     const g = this.g, t = g.teams[0], s = Math.floor(g.time);
     $('endh').textContent = r === 'victory' ? 'VICTORY' : 'DEFEAT';
-    $('endp').innerHTML = (r === 'victory' ? 'The rival Grod has fallen. Wind and Rain answer to your clan now.' : 'Your Grod is ash and there is no one left to raise it.') +
+    $('endp').innerHTML = (r === 'victory' ? 'The rival Grod has fallen. Wind and Rain answer to your Rodina now.' : 'Your Grod is ash and there is no one left to raise it.') +
       `<br><br>Time ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · Wind gathered ${Math.floor(t.windTotal)} · Rain gathered ${Math.floor(t.rainTotal)} · Units trained ${g.stats.unitsTrained} · Enemies slain ${g.stats.kills}`;
     setTimeout(() => $('end').classList.add('on'), 1600);
   }
@@ -451,7 +451,7 @@ export class UI {
     const endStick = (e) => { e.preventDefault(); e.stopPropagation(); this.stick.active = false; this.stick.x = this.stick.y = 0; $('sticknub').style.transform = ''; st.classList.remove('dn'); };
     st.addEventListener('touchend', endStick, { passive: false }); st.addEventListener('touchcancel', endStick, { passive: false });
     // touch helper buttons
-    $('bArmy').addEventListener('pointerup', (e) => { e.stopPropagation(); const a = this.g.alive(0, (u) => u.def.kind !== 'econ'); if (a.length) this.select(a); else this.toast('No army yet: build a War Hall', 'bad'); });
+    $('bArmy').addEventListener('pointerup', (e) => { e.stopPropagation(); const a = this.g.alive(0, (u) => u.def.kind !== 'econ'); if (a.length) this.select(a); else this.toast('No warband yet: raise a Zbroynia', 'bad'); });
     $('bIdle').addEventListener('pointerup', (e) => { e.stopPropagation(); this.selectIdle(); });
     $('bHome').addEventListener('pointerup', (e) => { e.stopPropagation(); const g = this.g.grodOf(0); if (g) { this.centerOn(g.x, g.z + 8); this.select([g]); } });
     $('bBox').addEventListener('pointerup', (e) => { e.stopPropagation(); this.boxMode = !this.boxMode; $('bBox').classList.toggle('on', this.boxMode); });

@@ -1,6 +1,6 @@
 /**
  * The simulation: entities, orders, the ritual economy, production, construction, combat,
- * fog of war, the Forest Spirit and the objectives. The rival clan's brain is in ai.js.
+ * fog of war, the Leshy and the objectives. The rival Rodina's brain is in ai.js.
  */
 import * as THREE from 'three';
 import { UNITS, BUILDINGS, TEAM, START, LAYOUT, WIND_PER_VIETRA, RAIN_PER_ZHERCA, SHRINE_SLOTS, DANCE_RADIUS, INTERRUPT_S, OBJECTIVES, MAP, clamp } from './config.js';
@@ -65,11 +65,11 @@ export class Game {
     const def = BUILDINGS[bt];
     if (def.atSpring) {
       const s = this.springs.find((s) => !s.shrine && Math.hypot(s.x - x, s.z - z) < 6);
-      if (!s) return { ok: false, why: 'Must be built at a free Sacred Spring', x, z };
+      if (!s) return { ok: false, why: 'A Zdroy must rise at a free Sacred Spring', x, z };
       x = s.x; z = s.z;
     }
     const half = def.size / 2;
-    if (!def.atSpring && this.springs.some((s) => Math.abs(s.x - x) < half + 3.5 && Math.abs(s.z - z) < half + 3.5)) return { ok: false, why: 'The Sacred Springs are kept for Rain Shrines', x, z };
+    if (!def.atSpring && this.springs.some((s) => Math.abs(s.x - x) < half + 3.5 && Math.abs(s.z - z) < half + 3.5)) return { ok: false, why: 'The Sacred Springs are kept for the Zdroy', x, z };
     if (!inMap(x - half, z - half) || !inMap(x + half, z + half)) return { ok: false, why: 'Too close to the edge', x, z };
     let hmin = 1e9, hmax = -1e9;
     for (const k of this.footprintCells(def, x, z)) {
@@ -183,7 +183,7 @@ export class Game {
   pay(team, def, sign = 1) { const t = this.teams[team]; t.wind -= def.wind * sign; t.rain -= (def.rain || 0) * sign; }
   async build(u, bt, x, z) {
     const def = BUILDINGS[bt];
-    if (!def.builtBy.includes(u.ut)) return { ok: false, why: `A ${UNITS[u.ut].name} cannot build that` };
+    if (!def.builtBy.includes(u.ut)) return { ok: false, why: `A ${UNITS[u.ut].name} cannot raise that` };
     const pl = this.canPlace(bt, x, z, u.team);
     if (!pl.ok) return pl;
     if (!this.canAfford(u.team, def)) return { ok: false, why: `Not enough ${this.teams[u.team].wind < def.wind ? 'Wind' : 'Rain'}` };
@@ -196,10 +196,10 @@ export class Game {
   }
   train(b, ut) {
     const def = UNITS[ut];
-    if (!b.built || b.dead || !b.def.trains.includes(ut)) return { ok: false, why: 'Cannot train that here' };
+    if (!b.built || b.dead || !b.def.trains.includes(ut)) return { ok: false, why: 'Cannot call that here' };
     if (b.queue.length >= 5) return { ok: false, why: 'The queue is full' };
     if (!this.canAfford(b.team, def)) return { ok: false, why: `Not enough ${this.teams[b.team].wind < def.wind ? 'Wind' : 'Rain'}` };
-    if (this.supplyUsed(b.team) + def.supply > this.supplyCap(b.team)) return { ok: false, why: this.supplyCap(b.team) >= START.supplyMax ? 'Supply is at its limit' : 'Build more Khatas' };
+    if (this.supplyUsed(b.team) + def.supply > this.supplyCap(b.team)) return { ok: false, why: this.supplyCap(b.team) >= START.supplyMax ? 'Supply is at its limit' : 'Raise more Khatas' };
     this.pay(b.team, def);
     b.queue.push({ ut, t: 0 });
     return { ok: true };
@@ -295,7 +295,7 @@ export class Game {
   spiritSlain(from) {
     const team = from ? from.team : TEAM.PLAYER;
     this.teams[team].wind += 150; this.teams[team].rain += 75;
-    if (team === TEAM.PLAYER) this.emit('toast', 'The Forest Spirit is appeased: +150 Wind, +75 Rain');
+    if (team === TEAM.PLAYER) this.emit('toast', 'The Leshy falls. Its hoard is yours: +150 Wind, +75 Rain');
   }
 
   /* ------------------------------------------------------------ per-frame */
@@ -508,7 +508,7 @@ export class Game {
       const s = o.shrine;
       if (!s || s.dead || !s.built) { this.order(u, null); return; }
       if (!u.slot) {
-        if (s.workers.length >= SHRINE_SLOTS && !s.workers.includes(u)) { this.order(u, null); this.emit('toast', 'That Rain Shrine is full', u); return; }
+        if (s.workers.length >= SHRINE_SLOTS && !s.workers.includes(u)) { this.order(u, null); this.emit('toast', 'That Zdroy is full', u); return; }
         u.slot = this.riteSpot(s, u); u.slotOf = s;
       }
       const [sx, sz] = u.slot;
@@ -573,7 +573,7 @@ export class Game {
     return best;
   }
 
-  /* ------------------------------------------------------------ the Forest Spirit */
+  /* ------------------------------------------------------------ the Leshy */
   spiritBrain(u, dt) {
     const [hx, hz] = u.home;
     const fromHome = Math.hypot(u.x - hx, u.z - hz);
