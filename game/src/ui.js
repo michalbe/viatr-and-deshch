@@ -274,6 +274,7 @@ export class UI {
     if (b) {
       if (!b.built) return [{ label: 'Rising…', disabled: true }];
       for (const ut of b.def.trains) {
+        if (g.locked.has(ut)) continue;
         const d = UNITS[ut];
         cmds.push({ label: d.name, key: d.key, icon: this.portraits[ut], cost: d, tip: `${d.name}: ${d.title}`, act: () => { const r = g.train(b, ut); if (!r.ok) { this.toast(r.why, 'bad'); sfx('deny'); } else sfx('click'); this.refreshPanel(true); } });
       }
@@ -392,7 +393,8 @@ export class UI {
     $('supply').parentElement.classList.toggle('full', used >= cap);
     const dancing = g.alive(0, (u) => u.anim.mode === 'dance').length, rites = g.alive(0, (u) => u.anim.mode === 'rite').length;
     $('windrate').textContent = `+${dancing}/s`; $('rainrate').textContent = `+${rites}/s`;
-    const s = Math.floor(g.time); $('clock').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const s = Math.floor(g.time); const dn = g.systems?.daynight;
+    $('clock').textContent = dn ? `${dn.isNight ? '☾' : '☀'} ${dn.clock()}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     this.panelT -= dt; if (this.panelT <= 0) { this.panelT = 0.25; this.refreshPanel(false); }
     if (this.toastT > 0) { this.toastT -= dt; if (this.toastT <= 0) $('toast').classList.remove('on'); }
     this.drawMinimap(dt);

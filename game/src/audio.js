@@ -147,6 +147,15 @@ export function sfx(name, vol = 1) {
     env(g, t, 0.02, 0.45 * vol, 1.6); n.connect(f); f.connect(g); g.connect(sfxBus); n.start(t); n.stop(t + 1.8);
   } else if (name === 'knock') {
     clave(t, 0.12 * vol, 520 + Math.random() * 120);
+  } else if (name === 'rumble') {
+    const n = noise(), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(160, t); f.frequency.exponentialRampToValueAtTime(60, t + 2);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18 * vol, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    n.connect(f); f.connect(g); g.connect(sfxBus); n.start(t); n.stop(t + 2.4);
+  } else if (name === 'thunderclap') {
+    const n = noise(), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(80, t + 2.5);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6 * vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+    n.connect(f); f.connect(g); g.connect(sfxBus); n.start(t); n.stop(t + 3.2);
+    drum(t, 45, 0.5 * vol, sfxBus);
   } else if (name === 'raise') {
     // a founding dance: bells and a breath of wind
     bells(t, 0.05 * vol);

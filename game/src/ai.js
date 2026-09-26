@@ -23,7 +23,7 @@ export class RivalAI {
   get busy() { return this.building || (this.site && !this.site.dead && !this.site.built); }
   update(dt) {
     this.t += dt; this.tick -= dt;
-    if (this.tick > 0 || this.g.over || this.mode === 'off') return;
+    if (this.tick > 0 || this.g.over || this.mode === 'off' || !map().rival) return;
     this.tick = 1;
     if (this.mode === 'migrate') return this.migrate();
     if (this.mode === 'hunt') return this.hunt();

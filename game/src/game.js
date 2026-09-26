@@ -34,6 +34,7 @@ export class Game {
     this.flags = {};                   // campaign / mission facts: leshyAppeased, leshyKilled, ...
     this.walls = [];                   // root walls the forest can withdraw: { prop, cells }
     this.scripted = false;             // a mission runtime owns objectives and the end; skirmish keeps the built-in list
+    this.locked = new Set();           // unit types the Rodina does not know yet (campaign unlocks)
     this.paused = false;
     this.pendingSpawns = [];           // { ut, team, x, z, at, home }
   }
@@ -252,6 +253,7 @@ export class Game {
   train(b, ut) {
     const def = UNITS[ut];
     if (!b.built || b.dead || !b.def.trains.includes(ut)) return { ok: false, why: 'Cannot call that here' };
+    if (this.locked.has(ut)) return { ok: false, why: 'The Rodina does not know that rite yet' };
     if (b.queue.length >= 5) return { ok: false, why: 'The queue is full' };
     if (!this.canAfford(b.team, def)) return { ok: false, why: `Not enough ${this.teams[b.team].wind < def.wind ? 'Wind' : 'Rain'}` };
     if (this.supplyUsed(b.team) + def.supply > this.supplyCap(b.team)) return { ok: false, why: this.supplyCap(b.team) >= START.supplyMax ? 'Supply is at its limit' : 'Raise more Khatas' };
@@ -528,6 +530,8 @@ export class Game {
     }
     if (u.def.brain === 'leshy') return this.spiritBrain(u, dt);
     if (u.def.brain === 'leshonok') return this.leshonokBrain(u, dt);
+    if (u.def.brain === 'upir') return this.upirBrain(u, dt);
+    if (u.def.brain === 'striga') return this.strigaBrain(u, dt);
     if (!o) {
       u.anim.mode = 'idle'; u.speedNow = 0;
       if (u.next.length) { u.order = u.next.shift(); return; }
@@ -615,7 +619,9 @@ export class Game {
       u.face = turn(u.face, Math.atan2(s.x - u.x, s.z - u.z), dt * 4);
       if (u.interruptT > 0) { u.anim.mode = 'idle'; return; }
       u.anim.mode = 'rite';
-      const t = this.teams[u.team]; t.rain += RAIN_PER_ZHERCA * dt; t.rainTotal += RAIN_PER_ZHERCA * dt;
+      const mult = (s.state === 'bound' ? 2.5 : 1) * (this.systems?.weather?.rainMultAt(s.x, s.z) ?? 1) * (this.rainBase ?? 1);
+      const t = this.teams[u.team]; t.rain += RAIN_PER_ZHERCA * dt * mult; t.rainTotal += RAIN_PER_ZHERCA * dt * mult;
+      if (s.state === 'bound') { s.corruption = Math.min(1, (s.corruption || 0) + dt / 90); }
       return;
     }
     if (o.type === 'ritual') {
@@ -683,6 +689,8 @@ export class Game {
   }
   dmgAgainst(u, t) {
     let d = u.def.dmg * (0.85 + Math.random() * 0.3);
+    if (u.def.kind === 'nav') d *= 0.6 + 0.6 * (this.systems?.daynight?.darkness ?? 0);     // the dead are strong in the dark
+    if (t.def?.kind === 'nav' && u.def.ranged && this.dola?.arrowSpirit) d *= this.dola.arrowSpirit;
     if (t.kind === 'building') d *= u.def.vsBuilding || 1;
     else if (t.def.kind === 'econ') d *= u.def.vsEcon || 1;
     return d;
@@ -783,6 +791,67 @@ export class Game {
     }
   }
 
+  /* ------------------------------------------------------------ the unquiet dead */
+  /** shared melee pursuit for the wild brains: returns true while busy with a target */
+  chase(u, dt, t, { dur = 0.5, hitAt = 0.25, arrive = 0.3 } = {}) {
+    const d = this.distTo(u, t);
+    if (d <= u.def.range) {
+      u.speedNow = 0; u.path = null; u.face = turn(u.face, Math.atan2(t.x - u.x, t.z - u.z), dt * 8);
+      if (u.cooldown <= 0) { u.cooldown = u.def.cd; u.anim.mode = 'attack'; u.anim.attackT = 0; u.anim.attackDur = dur; u.pendingHit = { target: t, t: hitAt }; }
+      else if (u.anim.attackT >= u.anim.attackDur) u.anim.mode = 'idle';
+    } else { u.anim.mode = 'walk'; this.goTo(u, t.x, t.z, dt, arrive); }
+  }
+  nearestHuman(u, r, pred) {
+    let best = null, bd = r * r;
+    for (const e of this.units) { if (e.dead || e.fallen || e.team === TEAM.NEUTRAL || e.def.kind === 'spirit' || e.def.kind === 'nav' || (pred && !pred(e))) continue; const d = (e.x - u.x) ** 2 + (e.z - u.z) ** 2; if (d < bd) { bd = d; best = e; } }
+    return best;
+  }
+  nearestHumanBuilding(u, r) {
+    let best = null, bd = r * r;
+    for (const b of this.buildings) { if (b.dead || b.team === TEAM.NEUTRAL) continue; const d = (b.x - u.x) ** 2 + (b.z - u.z) ** 2; if (d < bd) { bd = d; best = b; } }
+    return best;
+  }
+  upirBrain(u, dt) {
+    const dark = this.systems?.daynight?.darkness ?? 1, o = u.order;
+    const warded = this.systems?.inWard(u.x, u.z);
+    u.speed = u.def.speed * (0.7 + 0.5 * dark) * (warded ? 0.5 : 1);
+    if (warded) { this.damage(u, 6 * dt, null); if (Math.random() < dt * 2) this.fx.puff(u.x, u.y + 1, u.z, 2, [0.9, 0.85, 0.7], 0.6, 0.4, 0.8); if (u.dead) return; }
+    if (o?.type === 'attack') { if (!o.target || o.target.dead || o.target.fallen) { this.order(u, null); return; } this.chase(u, dt, o.target, { dur: 0.6, hitAt: 0.3 }); return; }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.2)) this.order(u, null); if (u.scanT <= 0) { u.scanT = 0.5; const t = this.nearestHuman(u, 14); if (t) this.order(u, { type: 'attack', target: t }); } return; }
+    u.anim.mode = 'idle'; u.speedNow = 0;
+    if (u.scanT > 0) return;
+    u.scanT = 0.6;
+    const t = this.nearestHuman(u, u.sight + 20 * dark) || this.nearestHumanBuilding(u, 30 + 40 * dark);
+    if (t) { this.order(u, { type: 'attack', target: t }); return; }
+    // nothing near: shamble toward the living
+    const g0 = this.grodOf(TEAM.PLAYER) || this.buildings.find((b) => !b.dead && b.team === TEAM.PLAYER);
+    if (g0 && dark > 0.3) this.order(u, { type: 'move', x: g0.x + (Math.random() - 0.5) * 10, z: g0.z + 8 + Math.random() * 6 });
+    else if (u.home) { const a = Math.random() * 6.28; this.order(u, { type: 'move', x: u.home[0] + Math.cos(a) * 5, z: u.home[1] + Math.sin(a) * 5 }); }
+  }
+  strigaBrain(u, dt) {
+    const dark = this.systems?.daynight?.darkness ?? 1, o = u.order;
+    const warded = this.systems?.inWard(u.x, u.z);
+    u.leapT = Math.max(0, (u.leapT || 0) - dt); u.leapCd = Math.max(0, (u.leapCd || 0) - dt);
+    u.speed = u.def.speed * (0.5 + 0.6 * dark) * (u.leapT > 0 ? 4 : 1) * (warded ? 0.6 : 1);
+    if (warded) { this.damage(u, 4 * dt, null); if (u.dead) return; }
+    if (o?.type === 'attack') {
+      const t = o.target; if (!t || t.dead || t.fallen) { this.order(u, null); return; }
+      const d = this.distTo(u, t);
+      if (u.leapCd <= 0 && d > 5 && d < 11) { u.leapT = 0.45; u.leapCd = 7; u.anim.mode = 'attack'; u.anim.attackT = 0; u.anim.attackDur = 0.6; sfx('spirit', this.visibleTo(0, u) ? 0.5 : 0); }
+      this.chase(u, dt, t, { dur: 0.45, hitAt: 0.2 });
+      return;
+    }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 1.5)) this.order(u, null); if (u.scanT <= 0) { u.scanT = 0.4; const t = this.nearestHuman(u, 30, (e) => e.def.kind === 'econ') || this.nearestHuman(u, 12); if (t) this.order(u, { type: 'attack', target: t }); } return; }
+    u.anim.mode = 'idle'; u.speedNow = 0;
+    if (u.scanT > 0) return;
+    u.scanT = 0.5;
+    const t = this.nearestHuman(u, 45, (e) => e.def.kind === 'econ') || this.nearestHuman(u, 30);
+    if (t) { this.order(u, { type: 'attack', target: t }); return; }
+    const g0 = this.grodOf(TEAM.PLAYER);
+    if (g0 && dark > 0.3) this.order(u, { type: 'move', x: g0.x + (Math.random() - 0.5) * 30, z: g0.z + (Math.random() - 0.5) * 30 });
+    else if (u.home) { const a = Math.random() * 6.28; this.order(u, { type: 'move', x: u.home[0] + Math.cos(a) * 8, z: u.home[1] + Math.sin(a) * 8 }); }
+  }
+
   /* ------------------------------------------------------------ checkpoints */
   serialize() {
     const units = this.units.filter((u) => !u.dead).map((u) => ({ ut: u.ut, team: u.team, x: +u.x.toFixed(2), z: +u.z.toFixed(2), face: +u.face.toFixed(2), hp: Math.ceil(u.hp), name: u.name, tag: u.tag, story: !!u.story, home: u.home, appeased: !!u.appeased, hostile: !!u.hostile, hunt: !!u.hunt, wave: !!u.wave, o: u.order?.type === 'dance' ? 'dance' : u.order?.type === 'rite' ? 'rite' : null }));
@@ -830,7 +899,8 @@ export class Game {
       const [ci, cj] = cellOf(x, z);
       for (const [i, j] of this.circle(r)) { const a = ci + i, b = cj + j; if (a >= 0 && b >= 0 && a < G && b < G) { this.vis[b * G + a] = 1; this.seen[b * G + a] = 1; } }
     };
-    for (const u of this.units) if (!u.dead && u.team === TEAM.PLAYER) stamp(u.x, u.z, u.sight);
+    const ss = this.systems?.daynight?.sightScale ?? 1;
+    for (const u of this.units) if (!u.dead && u.team === TEAM.PLAYER) stamp(u.x, u.z, u.sight * ss * (this.systems?.weather?.sightMultAt(u.x, u.z) ?? 1) * (u.ut === 'baba' && this.dola?.babaSight ? this.dola.babaSight : 1));
     for (const b of this.buildings) if (!b.dead && b.team === TEAM.PLAYER) stamp(b.x, b.z, b.sight + b.def.size / 2);
     for (let i = this.reveals.length - 1; i >= 0; i--) { const r = this.reveals[i]; r.t -= this.fogT <= 0 ? 0.25 : 0; stamp(r.x, r.z, r.r); if (r.t <= 0) this.reveals.splice(i, 1); }
   }

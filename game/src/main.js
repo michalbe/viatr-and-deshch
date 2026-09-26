@@ -293,10 +293,10 @@ function tick(dt, draw) {
   const stageOpen = $('stage').classList.contains('on');
   if (!game.paused && !stageOpen) {
     for (let k = 0; k < SPEED; k++) {
-      if (started) ai.update(dt);
+      try { if (started) ai.update(dt); } catch (e) { console.warn('[ai]', e); }
       game.update(started ? dt : dt * 0.6);
-      if (started && rt) rt.tick(dt);
-      if (started && systems) systems.update(dt);
+      try { if (started && rt) rt.tick(dt); } catch (e) { console.warn('[mission]', e); }
+      try { if (started && systems) systems.update(dt); } catch (e) { console.warn('[systems]', e); }
     }
     if (dialogue) dialogue.update(dt);
   }
