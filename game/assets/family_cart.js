@@ -6,7 +6,7 @@ import { createKit } from '../charkit.js';
 export default function (THREE) {
   const P = createPainter(THREE, 512, 211);
   const R = P.region;
-  const WOOD = 0xa27a4f, LINEN = 0xe6dcc3, SKIN = 0xd9a07a, HAIR = 0x8a7a68, WOOL = 0x4a3f38, LEATHER = 0x6b4526;
+  const WOOD = 0xa27a4f, LINEN = 0xe6dcc3, SKIN = 0xd9a07a, HAIR = 0x8a7a68, WOOL = 0x6b5d4e, LEATHER = 0x6b4526;
   R('wood', 0, 0, 128, 128, (c, w, h) => P.planks(w, h, { base: WOOD, count: 5 }));
   R('cloth', 128, 0, 128, 128, (c, w, h) => { P.cloth(w, h, { base: GREY, folds: 5, depth: 0.5 }); P.band(w, h - 10, 10, P.tone(GREY, -0.4)); });
   R('bundle', 256, 0, 64, 64, (c, w, h) => P.cloth(w, h, { base: LINEN, folds: 3, depth: 0.5 }));
@@ -26,7 +26,7 @@ export default function (THREE) {
   add(cart, sweep([{ p: [-0.55, 0.3, 1.0], rx: 0.04 }, { p: [-0.5, 0.6, 2.2], rx: 0.035 }], 5, { capStart: true, capEnd: true }), 'wood');
   add(cart, sweep([{ p: [0.55, 0.3, 1.0], rx: 0.04 }, { p: [0.5, 0.6, 2.2], rx: 0.035 }], 5, { capStart: true, capEnd: true }), 'wood');
   for (let i = 0; i < 5; i++) add(cart, blob(0.3 + (i % 2) * 0.1, 0.25, 0.3, 7, 4), 'bundle', { pos: [(i % 3 - 1) * 0.36, 0.7, -0.6 + (i % 2) * 0.7 + i * 0.1] });
-  add(cart, sheet(1.4, 1.9, { sag: -0.2, wave: 0.03, taper: 0, rows: 4, cols: 4 }), 'cloth', { mat: K.team2, pos: [0, 1.15, 0.9], rot: [-Math.PI / 2, 0, 0] });
+  add(cart, sheet(1.5, 2.0, { sag: -0.3, wave: 0.04, taper: 0, rows: 4, cols: 4 }), 'cloth', { mat: K.team2, pos: [0, 0.9, 1.0], rot: [-Math.PI / 2, 0, 0] });
   // the old man pulling
   const man = joint(g, 0, 0.95, 1.9);
   add(man, rings([{ y: 0.55, rx: 0.12, rz: 0.1 }, { y: 0.48, rx: 0.28, rz: 0.2 }, { y: 0.2, rx: 0.26, rz: 0.2 }, { y: -0.1, rx: 0.24, rz: 0.19 }, { y: -0.5, rx: 0.26, rz: 0.2 }], 8, { capTop: true }), 'wool');

@@ -26,7 +26,7 @@ export default function (THREE) {
   add(spine, rings([{ y: 0.48, rx: 0.075, rz: 0.07 }, { y: 0.42, rx: 0.2, rz: 0.15 }, { y: 0.26, rx: 0.2, rz: 0.16 }, { y: 0.1, rx: 0.15, rz: 0.13 }, { y: 0.0, rx: 0.17, rz: 0.14 }], 10, { capTop: true }), 'shift');
   add(head, blob(0.19, 0.22, 0.2, 10, 6), 'head', { pos: [0, 0.2, 0.01] });
   add(head, rings([{ y: 0.42, rx: 0.02, rz: 0.02 }, { y: 0.38, rx: 0.14, rz: 0.15 }, { y: 0.28, rx: 0.21, rz: 0.22 }, { y: 0.1, rx: 0.2, rz: 0.22, z: -0.04 }, { y: -0.4, rx: 0.16, rz: 0.2, z: -0.12 }, { y: -1.1, rx: 0.08, rz: 0.12, z: -0.2 }], 10, { capTop: true }), 'hair', { mat: K.paint2, pos: [0, 0, -0.01] });
-  for (let i = 0; i < 3; i++) add(head, ribbon(0.8, 0.1, [Math.cos(i * 2.1) * 0.4, -0.6, -0.4], [0, 1, 0], 0.1, i), 'hair', { mat: K.paint2, pos: [0, 0.2, -0.12] });
+  for (let i = 0; i < 3; i++) add(head, ribbon(0.8, 0.1, [Math.cos(i * 2.1) * 0.3, -1, -0.35], [1, 0, 0], 0.08, i), 'hair', { mat: K.paint2, pos: [(i - 1) * 0.1, 0.1, -0.16] });
   for (const [sh, el, s] of [[lShoulder, lElbow, 1], [rShoulder, rElbow, -1]]) {
     add(sh, limb(0.28, [[0.07, 0.065], [0.06, 0.055], [0.055, 0.05]], 7), 'shift');
     add(el, limb(0.28, [[0.055, 0.05], [0.05, 0.045], [0.045, 0.04]], 7), 'skin');

@@ -38,7 +38,7 @@ const ASSETS = {
   burial_mound: { prop: 'burial_mound', label: 'Burial Mound', size: 3 },
   corpse: { prop: 'corpse', label: 'Corpse', size: 0.5 },
   vila_ring: { prop: 'vila_ring', label: 'Vila Ring', size: 7 },
-  upir_drowned: { prop: 'upir_drowned', label: 'Drowned Upir', size: 3 },
+  upir_drowned: { unit: 'upir_drowned', label: 'Drowned Upir' },
 };
 
 const $ = (selector) => document.querySelector(selector);
