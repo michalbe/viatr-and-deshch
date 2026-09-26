@@ -38,27 +38,30 @@ async function buildUnitTemplate(asset, team, height) {
   const { list } = boneList(inst);
   const boneIndex = new Map(list.map((b, i) => [b, i]));
   const teamCol = new THREE.Color(TEAM_COLOR[team]);
-  const buckets = { main: [], metal: [], glow: [] };
-  let glowMat = null;
+  // Buckets are one draw call each. A painted character shares one atlas across every part,
+  // so it lands in one bucket; a flat-coloured asset splits into main / metal / glow.
+  const buckets = new Map();   // key -> { geos, map, glow, metal, glowMat }
   const c = new THREE.Color();
   inst.traverse((o) => {
     if (!o.isMesh || !o.geometry?.attributes?.position) return;
     let p = o, bi = 0;
     while (p) { if (boneIndex.has(p)) { bi = boneIndex.get(p); break; } p = p.parent; }
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    const map = m.map || null;
     let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
     g.applyMatrix4(o.matrixWorld);
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && !(map && k === 'uv')) g.deleteAttribute(k);
     if (!g.attributes.normal) g.computeVertexNormals();
     g.morphAttributes = {}; g.clearGroups();
     const n = g.attributes.position.count;
+    if (map && !g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
     c.copy(m.color || new THREE.Color(0xffffff));
     if ((m.color?.getHex?.() ?? -1) === TEAM_HEX_IN_ASSETS) c.copy(teamCol);
     const col = new Float32Array(n * 3);
     const pa = g.attributes.position.array;
     for (let v = 0; v < n; v++) {
-      // a painted wobble: +-7% value noise in object space, so flat parts read hand-painted
-      const w = 1 + (Math.sin(pa[v * 3] * 7.1 + pa[v * 3 + 1] * 5.3) * Math.sin(pa[v * 3 + 2] * 6.7 - pa[v * 3 + 1] * 3.1)) * 0.07;
+      // flat parts get a painted wobble: +-7% value noise in object space; painted atlases carry their own
+      const w = map ? 1 : 1 + (Math.sin(pa[v * 3] * 7.1 + pa[v * 3 + 1] * 5.3) * Math.sin(pa[v * 3 + 2] * 6.7 - pa[v * 3 + 1] * 3.1)) * 0.07;
       col[v * 3] = c.r * w; col[v * 3 + 1] = c.g * w; col[v * 3 + 2] = c.b * w;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -66,16 +69,23 @@ async function buildUnitTemplate(asset, team, height) {
     for (let v = 0; v < n; v++) { si[v * 4] = bi; sw[v * 4] = 1; }
     g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
     g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
-    if (isGlow(m)) { buckets.glow.push(g); if (!glowMat) glowMat = m; }
-    else if (isMetal(m)) buckets.metal.push(g);
-    else buckets.main.push(g);
+    const glow = isGlow(m), metal = !map && isMetal(m), twoSided = m.side === THREE.DoubleSide;
+    const key = `${map ? map.uuid : '-'}|${glow ? 'g' : metal ? 'm' : 'p'}|${twoSided ? 2 : 1}`;
+    if (!buckets.has(key)) buckets.set(key, { geos: [], map, glow, metal, twoSided, glowMat: glow ? m : null });
+    buckets.get(key).geos.push(g);
   });
   const { mergeGeometries } = await import('three/addons/utils/BufferGeometryUtils.js');
   const parts = [];
-  const mk = (geos, mat) => { if (!geos.length) return; const g = mergeGeometries(geos, false); g.computeBoundingSphere(); g.boundingSphere.radius *= 1.35; parts.push({ geo: g, mat }); };
-  mk(buckets.main, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }));
-  mk(buckets.metal, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.55 }));
-  if (glowMat) mk(buckets.glow, new THREE.MeshStandardMaterial({ vertexColors: true, emissive: glowMat.emissive.clone(), emissiveIntensity: Math.max(1.2, glowMat.emissiveIntensity || 1), roughness: 0.6 }));
+  for (const b of buckets.values()) {
+    const g = mergeGeometries(b.geos, false);
+    g.computeBoundingSphere(); g.boundingSphere.radius *= 1.35;
+    const side = b.twoSided ? THREE.DoubleSide : THREE.FrontSide;
+    let mat;
+    if (b.glow) mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: b.map, emissive: b.glowMat.emissive.clone(), emissiveIntensity: Math.max(1.2, b.glowMat.emissiveIntensity || 1), roughness: 0.6, side });
+    else if (b.metal) mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.55, side });
+    else mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: b.map, roughness: b.map ? 0.9 : 0.82, metalness: 0, side });
+    parts.push({ geo: g, mat });
+  }
   const size = new THREE.Box3().setFromObject(inst).getSize(new THREE.Vector3());
   return { asset, team, height, parts, size };
 }

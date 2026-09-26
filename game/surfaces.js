@@ -271,6 +271,7 @@ export function applySurfaces(THREE, root, opts = {}) {
 
   root.traverse((o) => {
     if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+    if (o.material.map) { left++; return; }   // a painted asset carries its own surface
     const recipe = opts.only || classify(o.material);
     if (!recipe) { left++; return; }
 
