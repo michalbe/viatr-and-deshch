@@ -14,12 +14,19 @@ export class RivalAI {
     this.waveN = 0;
     this.building = false;
     this.site = null;
+    this.mode = 'skirmish';      // skirmish | passive | defend | raid | hold | migrate | hunt | off
+    this.params = {};
+    this.diff = { wave: 1, cap: 0, interval: 1 };
   }
+  /** Mission scripts switch what the clan is doing. */
+  setMode(mode, params = {}) { this.mode = mode; this.params = { ...this.params, ...params }; if (params.nextWave !== undefined) this.nextWave = this.t + params.nextWave; }
   get busy() { return this.building || (this.site && !this.site.dead && !this.site.built); }
   update(dt) {
     this.t += dt; this.tick -= dt;
-    if (this.tick > 0 || this.g.over) return;
+    if (this.tick > 0 || this.g.over || this.mode === 'off') return;
     this.tick = 1;
+    if (this.mode === 'migrate') return this.migrate();
+    if (this.mode === 'hunt') return this.hunt();
     const g = this.g, T = g.teams[R];
     const grod = g.grodOf(R);
     const units = g.alive(R);
@@ -43,7 +50,7 @@ export class RivalAI {
     if (this.t > 360 && !g.aliveB(R, 'grove').length && !this.busy && T.wind >= 150 && T.rain >= 50 && zhercas.length) this.buildNear('grove', zhercas);
     // contest the exposed spring after minute 8
     const exposed = g.springs[map().exposedSpring ?? 1];
-    if (this.t > 480 && !exposed.shrine && !this.busy && T.wind >= 75 && zhercas.length > 1 && !this.expanding) {
+    if (this.mode !== 'passive' && this.mode !== 'defend' && this.t > 480 && exposed && !exposed.shrine && !this.busy && T.wind >= 75 && zhercas.length > 1 && !this.expanding) {
       this.expanding = true;
       const z = zhercas.find((z) => z.order?.type === 'rite') || zhercas[0];
       this.building = true;
@@ -52,7 +59,7 @@ export class RivalAI {
     }
 
     // production, capped so the clan grows with the match instead of swamping it early
-    const armyCap = Math.min(16, 4 + Math.floor(this.t / 60) * 1.2);
+    const armyCap = Math.min(16 + this.diff.cap, 4 + this.diff.cap * 0.5 + Math.floor(this.t / 60) * 1.2 * (this.mode === 'passive' ? 0.5 : 1));
     for (const h of g.aliveB(R, 'warhall')) {
       if (!h.built || h.queue.length >= 1 || military.length >= armyCap) continue;
       const roll = Math.random();
@@ -73,10 +80,10 @@ export class RivalAI {
     for (const m of military) if (!m.order && !m.wave && Math.hypot(m.x - home[0], m.z - home[1]) > 30) g.order(m, { type: 'move', x: home[0] - 10 + Math.random() * 6, z: home[1] + 14 + Math.random() * 6 });
 
     // raids
-    if (this.t >= this.nextWave) {
+    if (this.t >= this.nextWave && this.mode !== 'passive' && this.mode !== 'defend') {
       const guard = 3;
       const avail = military.filter((m) => !m.wave).sort((a, b) => b.def.hp - a.def.hp);
-      const size = this.waveN === 0 ? 3 : Math.min(3 + this.waveN * 2, 10);
+      const size = Math.max(2, Math.round((this.waveN === 0 ? 3 : Math.min(3 + this.waveN * 2, 10)) * this.diff.wave * (this.params.waveScale || 1)));
       if (avail.length >= Math.min(size, 3) + (this.waveN === 0 ? 0 : guard)) {
         const team = avail.slice(0, Math.min(size, avail.length - (this.waveN === 0 ? 0 : guard)));
         const target = this.pickTarget();
@@ -88,14 +95,25 @@ export class RivalAI {
         }
         g.emit('raid', team.length);
         this.waveN++;
-        this.nextWave = this.t + 150 + Math.random() * 40;
+        this.nextWave = this.t + (150 + Math.random() * 40) * this.diff.interval * (this.params.intervalScale || 1);
       } else this.nextWave = this.t + 20;
     }
     // raiders who ran out of orders go looking again
     for (const m of military) if (m.wave && !m.order) { const t = this.pickTarget(); g.order(m, { type: 'amove', x: t[0], z: t[1] }); }
   }
+  /** migrate: everyone walks to params.to along params.via; nothing else happens */
+  migrate() {
+    const g = this.g, units = g.alive(R), P = this.params;
+    for (const u of units) if (!u.order) { const via = P.via && !u.viaDone ? P.via : P.to; if (via === P.to) u.viaDone = true; else u.viaDone = true; g.order(u, { type: u.def.kind === 'econ' ? 'move' : 'amove', x: via[0] + (Math.random() - 0.5) * 6, z: via[1] + (Math.random() - 0.5) * 6 }); if (via !== P.to) u.next.push({ type: u.def.kind === 'econ' ? 'move' : 'amove', x: P.to[0] + (Math.random() - 0.5) * 6, z: P.to[1] + (Math.random() - 0.5) * 6 }); }
+  }
+  /** hunt: military units go for the player's ritualists wherever they were last seen */
+  hunt() {
+    const g = this.g;
+    for (const m of g.alive(R, (u) => u.def.kind !== 'econ')) if (!m.order) { const t = g.alive(TEAM.PLAYER, (u) => u.def.kind === 'econ')[0] || g.alive(TEAM.PLAYER)[0]; if (t) g.order(m, { type: 'amove', x: t.x, z: t.z }); }
+  }
   pickTarget() {
     const g = this.g;
+    if (this.params.target) return this.params.target;
     const mine = g.buildings.filter((b) => b.team === TEAM.PLAYER && !b.dead);
     if (!mine.length) { const u = g.alive(TEAM.PLAYER)[0]; return u ? [u.x, u.z] : map().player.grod; }
     // the building nearest to the rival clan, which is usually the most exposed one

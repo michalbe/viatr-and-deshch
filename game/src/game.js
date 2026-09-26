@@ -33,6 +33,8 @@ export class Game {
     this.reveals = [];                 // temporary vision: { x, z, r, t }
     this.flags = {};                   // campaign / mission facts: leshyAppeased, leshyKilled, ...
     this.walls = [];                   // root walls the forest can withdraw: { prop, cells }
+    this.scripted = false;             // a mission runtime owns objectives and the end; skirmish keeps the built-in list
+    this.paused = false;
     this.pendingSpawns = [];           // { ut, team, x, z, at, home }
   }
   on(ev, fn) { (this.listeners[ev] ||= []).push(fn); }
@@ -217,7 +219,7 @@ export class Game {
       else if (k === 'building' && t.state) { const prev = t.state; t.state = null; this.emit('buildingState', t, prev); this.fx.puff(t.x, t.y + 3, t.z, 30, [0.6, 0.85, 1.0], 5, 0.7, 2.5); }
       else if (k === 'idol') { this.setSiteState(t, 'blessed'); this.fx.puff(t.x, t.y + 4, t.z, 20, [0.9, 0.9, 0.85], 3, 0.6, 2); }
     }
-    else if (o.ritual === 'ward') { this.addWard?.(t.x, t.z, r.radius, r.duration, u.team); }
+    else if (o.ritual === 'ward') { this.systems?.addWard(t.x, t.z, r.radius * (this.dola?.wardDuration ? 1 : 1), r.duration, u.team); }
     else if (o.ritual === 'sight') { this.reveal(t.x, t.z, r.radius, r.duration); this.fx.puff(t.x, heightAt(t.x, t.z) + 2, t.z, 16, [0.8, 0.7, 1.0], 3, 0.5, 2); }
     this.emit('ritual', { ritual: o.ritual, unit: u, target: t });
     this.order(u, null);
@@ -299,7 +301,7 @@ export class Game {
 
   /* ------------------------------------------------------------ damage */
   damage(t, amount, from) {
-    if (t.dead) return;
+    if (t.dead || t.fallen) return;
     t.hp -= amount;
     if (t.kind === 'unit') {
       this.fx.blood(t.x, t.y + t.def.height * 0.6, t.z, 3);
@@ -325,6 +327,14 @@ export class Game {
     if (t.hp <= 0) this.kill(t, from);
   }
   kill(t, from) {
+    if (t.kind === 'unit' && t.story && !t.fallen) {
+      // a story character is never lost for good: she falls, and rises again after a while, hurt
+      t.fallen = true; t.hp = 1; t.order = null; t.next = []; t.path = null; t.pendingHit = null; t.fallT = 12;
+      this.releaseSlot(t); this.emit('storyFall', t);
+      if (t.team === TEAM.PLAYER) this.emit('toast', `${t.name || t.def.name} has fallen. She will rise, in time.`);
+      return;
+    }
+    this.emit('kill', t, from);
     t.dead = true; t.hp = 0;
     if (from && from.team !== t.team) { this.teams[from.team].kills++; if (from.team === TEAM.PLAYER) this.stats.kills++; }
     this.teams[t.team].lost++;
@@ -398,7 +408,7 @@ export class Game {
       if (b.deadT > 3.5) { this.scene.remove(b.root); this.buildings.splice(i, 1); }
     }
     this.fogT -= dt; if (this.fogT <= 0) { this.fogT = 0.25; this.updateFog(); this.emit('fog'); }
-    this.objT -= dt; if (this.objT <= 0) { this.objT = 0.5; this.checkObjectives(); this.checkEnd(); }
+    this.objT -= dt; if (this.objT <= 0 && !this.scripted) { this.objT = 0.5; this.checkObjectives(); this.checkEnd(); }
   }
 
   updateBuilding(b, dt) {
@@ -502,6 +512,7 @@ export class Game {
 
   /* ------------------------------------------------------------ unit brain */
   updateUnit(u, dt) {
+    if (u.fallen) { u.anim.mode = 'idle'; u.speedNow = 0; u.fallT -= dt; if (u.fallT <= 0) { u.fallen = false; u.hp = u.maxHp * 0.5; this.emit('storyRise', u); } return; }
     u.cooldown -= dt; u.interruptT -= dt; u.scanT -= dt;
     const o = u.order;
     // resolve a pending melee hit
@@ -772,6 +783,41 @@ export class Game {
     }
   }
 
+  /* ------------------------------------------------------------ checkpoints */
+  serialize() {
+    const units = this.units.filter((u) => !u.dead).map((u) => ({ ut: u.ut, team: u.team, x: +u.x.toFixed(2), z: +u.z.toFixed(2), face: +u.face.toFixed(2), hp: Math.ceil(u.hp), name: u.name, tag: u.tag, story: !!u.story, home: u.home, appeased: !!u.appeased, hostile: !!u.hostile, hunt: !!u.hunt, wave: !!u.wave, o: u.order?.type === 'dance' ? 'dance' : u.order?.type === 'rite' ? 'rite' : null }));
+    const buildings = this.buildings.filter((b) => !b.dead).map((b) => ({ bt: b.bt, team: b.team, x: b.x, z: b.z, hp: Math.ceil(b.hp), built: b.built, progress: b.progress, queue: b.queue.map((q) => ({ ut: q.ut, t: q.t })), rally: b.rally ? { x: b.rally.x, z: b.rally.z } : null, state: b.state || null, name: b.name, tag: b.tag }));
+    let seen = ''; for (let i = 0; i < this.seen.length; i += 8) { let v = 0; for (let k = 0; k < 8; k++) v |= (this.seen[i + k] || 0) << k; seen += String.fromCharCode(v); }
+    return {
+      time: this.time, units, buildings,
+      teams: this.teams.map((t) => ({ wind: t.wind, rain: t.rain, windTotal: t.windTotal, rainTotal: t.rainTotal, trained: t.trained, lost: t.lost, kills: t.kills })),
+      sites: this.sites.map((s) => ({ state: s.state })), walls: this.walls.map((w) => !!w.open), flags: this.flags, stats: this.stats, seen: btoa(seen),
+      corpses: (this.corpses || []).map((c) => ({ x: c.x, z: c.z, team: c.team, ut: c.ut })),
+    };
+  }
+  async restore(d) {
+    this.time = d.time || 0;
+    d.teams.forEach((t, i) => Object.assign(this.teams[i], t));
+    Object.assign(this.flags, d.flags || {});
+    Object.assign(this.stats, d.stats || {});
+    const seen = atob(d.seen || ''); for (let i = 0; i < seen.length; i++) { const v = seen.charCodeAt(i); for (let k = 0; k < 8; k++) if (i * 8 + k < this.seen.length) this.seen[i * 8 + k] = (v >> k) & 1; }
+    (d.sites || []).forEach((s, i) => { if (this.sites[i]) this.sites[i].state = s.state; });
+    (d.walls || []).forEach((open, i) => { if (open && this.walls[i]) { const w = this.walls[i]; w.open = true; unblockCells(w.cells); if (w.prop) w.prop.visible = false; } });
+    for (const b of d.buildings) {
+      const nb = await this.placeBuilding(b.bt, b.team, b.x, b.z, b.built);
+      nb.hp = b.hp; nb.progress = b.progress; nb.queue = b.queue.map((q) => ({ ...q })); if (b.rally) nb.rally = { ...b.rally }; if (b.state) nb.state = b.state; if (b.name) nb.name = b.name; if (b.tag) nb.tag = b.tag;
+      if (!b.built) nb.hp = Math.max(nb.hp, nb.maxHp * 0.1);
+    }
+    for (const u of d.units) {
+      const nu = await this.spawnUnit(u.ut, u.team, u.x, u.z, u.face);
+      nu.hp = Math.min(nu.maxHp, u.hp); if (u.name) nu.name = u.name; if (u.tag) nu.tag = u.tag; if (u.story) nu.story = true; if (u.home) nu.home = u.home;
+      if (u.appeased) nu.appeased = true; if (u.hostile) nu.hostile = true; if (u.hunt) nu.hunt = true; if (u.wave) nu.wave = true;
+      if (u.o === 'dance') this.dance([nu], { auto: true }); else if (u.o === 'rite') this.rite([nu]);
+    }
+    for (const c of d.corpses || []) this.addCorpse?.(c.x, c.z, c.team, c.ut);
+    this.updateFog();
+  }
+
   /* ------------------------------------------------------------ fog of war */
   circle(r) {
     const k = Math.ceil(r / MAP.cell);
@@ -788,6 +834,7 @@ export class Game {
     for (const b of this.buildings) if (!b.dead && b.team === TEAM.PLAYER) stamp(b.x, b.z, b.sight + b.def.size / 2);
     for (let i = this.reveals.length - 1; i >= 0; i--) { const r = this.reveals[i]; r.t -= this.fogT <= 0 ? 0.25 : 0; stamp(r.x, r.z, r.r); if (r.t <= 0) this.reveals.splice(i, 1); }
   }
+  cellIndex(x, z) { return cellOf(x, z); }
   cellSeen(x, z) { const [i, j] = cellOf(x, z); return !!this.seen[j * G + i]; }
   cellVisible(x, z) { const [i, j] = cellOf(x, z); return !!this.vis[j * G + i]; }
 

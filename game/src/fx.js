@@ -225,6 +225,8 @@ export class FX {
     for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28, r = b.def.size * 0.45; this.glow.emit(b.x + Math.cos(a) * r, b.y + 0.3 + Math.random() * b.def.height * 0.7, b.z + Math.sin(a) * r, -Math.cos(a) * 0.6, 0.8, -Math.sin(a) * 0.6, 1.2, 0.4, 0.55, 0.9, 0.5, 0.8); }
     this.glow.emit(u.x, u.y + 1.5, u.z, (b.x - u.x) * 0.4, 0.8, (b.z - u.z) * 0.4, 1.0, 0.35, 0.7, 0.88, 1.0, 0.8);
   }
+  /** dark water and roots round a bound or corrupted Zdroy */
+  corruption(x, y, z, r) { if (Math.random() < 0.6) { const a = Math.random() * 6.28, rr = r * (0.4 + Math.random() * 0.8); this.dust.emit(x + Math.cos(a) * rr, y + 0.2, z + Math.sin(a) * rr, 0, 0.35 + Math.random() * 0.3, 0, 1.8, 1.4, 0.12, 0.06, 0.16, 0.55, -0.1); } }
   spiritAura(x, y, z) { if (Math.random() < 0.5) this.glow.emit(x + (Math.random() - 0.5) * 3, y + Math.random() * 4.5, z + (Math.random() - 0.5) * 3, 0, 0.4 + Math.random() * 0.4, 0, 2, 0.35, 0.62, 0.94, 0.78, 0.8); }
 
   update(dt, heightAt) {

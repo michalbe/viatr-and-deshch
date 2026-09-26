@@ -41,6 +41,60 @@
   #end { display:none; background:rgba(8,5,3,.82); z-index:60; }
   #end p { max-width:560px; line-height:1.7; color:#dccdb0; }
 
+  /* title menu */
+  #menu { display:flex; flex-direction:column; gap:10px; align-items:center; }
+  #menu .btn { min-width:280px; font-size:16px; padding:11px 24px; }
+  #menu .btn.dim { opacity:.45; pointer-events:none; }
+  #menu .row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  #menu .row .btn { min-width:0; font-size:13px; padding:9px 16px; }
+  #menu .note { font-size:12px; color:#a38e6c; max-width:420px; line-height:1.5; }
+  #menu .missions { display:flex; flex-direction:column; gap:4px; max-height:40vh; overflow:auto; }
+  #menu .missions .btn { font-size:13px; letter-spacing:.06em; text-transform:none; text-align:left; padding:8px 16px; }
+  #menu .missions .btn small { color:#a38e6c; margin-left:8px; }
+
+  /* dialogue */
+  #dlg { position:absolute; left:50%; bottom:calc(var(--panelH) + 22px); transform:translateX(-50%); width:min(680px, calc(100vw - 24px)); display:none; gap:12px; padding:8px 12px 8px 8px; pointer-events:auto; cursor:pointer; z-index:12; }
+  #dlg.on { display:flex; }
+  #dlgPortrait { width:96px; min-width:96px; height:96px; background:#221a12 center/cover no-repeat; border:2px solid var(--edge); border-radius:3px; box-shadow:inset 0 0 12px rgba(0,0,0,.7); }
+  #dlgBody { flex:1; min-width:0; }
+  #dlgName { font-size:15px; color:var(--gold); } #dlgName small { color:#b9a27c; font-style:italic; font-size:12px; margin-left:8px; }
+  #dlgText { font-size:15px; line-height:1.45; color:#f1e6cf; margin-top:3px; }
+  #dlgHint { position:absolute; right:12px; bottom:5px; font-size:10px; color:#a38e6c; letter-spacing:.1em; }
+
+  /* stage: mission intro, outro, Dola */
+  #stage { position:fixed; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 45%, rgba(40,28,16,.92), rgba(6,4,2,.97)); }
+  #stage.on { display:flex; }
+  #stage .card { display:flex; gap:28px; max-width:min(900px, calc(100vw - 32px)); padding:28px; align-items:flex-start; }
+  #stagePortrait { width:220px; min-width:220px; height:220px; background:#221a12 center/cover no-repeat; border:2px solid var(--edge); border-radius:4px; box-shadow:inset 0 0 20px rgba(0,0,0,.7), 0 0 40px rgba(232,198,120,.12); }
+  #stageBody { flex:1; min-width:0; }
+  #stageKicker { font-size:11px; letter-spacing:.3em; text-transform:uppercase; color:#b9a27c; }
+  #stageTitle { font-size:clamp(26px, 4vw, 40px); color:var(--gold); letter-spacing:.06em; margin:4px 0 10px; font-weight:400; }
+  #stageText { font-size:15px; line-height:1.65; color:#dccdb0; max-width:560px; }
+  #stageText .line { margin:6px 0; } #stageText .line b { color:var(--gold); font-weight:400; }
+  #stageStats { margin:14px 0; font-size:13px; color:#b9a27c; line-height:1.7; } #stageStats b { color:#f1e6cf; font-weight:400; }
+  #stageDola { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
+  #stageDola .dola { flex:1; min-width:200px; padding:12px 14px; cursor:pointer; text-align:left; font-family:inherit; color:var(--ink); }
+  #stageDola .dola:hover, #stageDola .dola.on { border-color:var(--gold); }
+  #stageDola .dola b { display:block; color:var(--gold); font-weight:400; font-size:15px; } #stageDola .dola i { display:block; color:#b9a27c; font-size:12px; margin:2px 0 6px; } #stageDola .dola span { font-size:12px; color:#dccdb0; line-height:1.4; }
+  #stageBtns { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  #stageBtns .btn { font-size:14px; padding:10px 22px; }
+
+  /* pause */
+  #pause { position:fixed; inset:0; z-index:65; display:none; align-items:center; justify-content:center; background:rgba(8,5,3,.7); }
+  #pause.on { display:flex; }
+  #pause .card { display:flex; flex-direction:column; gap:10px; padding:26px 30px; align-items:center; }
+  #pause h2 { margin:0 0 6px; font-weight:400; letter-spacing:.2em; color:var(--gold); font-size:22px; }
+  #pause .btn { min-width:260px; font-size:14px; padding:10px 20px; }
+  #objs .ol { display:flex; flex-direction:column; gap:3px; margin-top:3px; }
+  #objs .ol div { padding-left:14px; position:relative; font-size:13px; line-height:1.3; }
+  #objs .ol div:before { content:''; position:absolute; left:0; top:6px; width:7px; height:7px; border:1px solid var(--gold); transform:rotate(45deg); }
+  #objs .ol div.done { color:#9fbf80; text-decoration:line-through; } #objs .ol div.done:before { background:#9fbf80; }
+  #objs .ol div.failed { color:#c88070; } #objs .ol div.optional { color:#b9a27c; font-style:italic; }
+  @media (max-width: 640px) {
+    #stage .card { flex-direction:column; align-items:center; padding:18px; } #stagePortrait { width:140px; min-width:140px; height:140px; }
+    #dlg { bottom:calc(var(--panelH) + 8px); } #dlgPortrait { width:64px; min-width:64px; height:64px; }
+  }
+
   /* HUD */
   #ui { position:fixed; inset:0; pointer-events:none; z-index:10; display:none; }
   #ui.on { display:block; }
@@ -135,10 +189,10 @@
 
 <div id="start">
   <h1>WIND <em>&amp;</em> RAIN</h1>
-  <div class="sub">The Sacred Valley</div>
-  <p>Your Vietras dance, and their dance gathers <b>Wind</b>. Zhercas kneel at the Sacred Springs, and their rite calls <i>Rain</i>. Ask the land to raise a village from both, call a warband, and destroy the rival Rodina's Grod in the northeast.</p>
-  <button class="btn frame pe" id="startb">Begin the Rite</button>
-  <div class="keys" id="keys">Left-click or drag to select · Right-click or Cmd+click to move, attack or assign · WASD or screen edges to scroll · Wheel to zoom · Ctrl+number to group · Space: home</div>
+  <div class="sub" id="startSub">a ritual strategy of the old gods</div>
+  <div id="menu"></div>
+  <div class="keys" id="keys">Left-click or drag to select · Right-click or Cmd+click to move, attack or assign · WASD or screen edges to scroll · Wheel to zoom · Ctrl+number to group · Space: home · Esc: menu</div>
+</div>
 </div>
 
 <div id="ui">
@@ -148,10 +202,11 @@
     <span class="res s"><span class="ic" id="ics"></span><b id="supply">0</b></span>
     <span id="clock">0:00</span>
   </div>
-  <div id="tbtns"><button class="sq frame pe" id="bObj" title="Objectives"></button><button class="sq frame pe" id="bMute" title="Sound"></button></div>
+  <div id="tbtns"><button class="sq frame pe" id="bObj" title="Objectives"></button><button class="sq frame pe" id="bMute" title="Sound"></button><button class="sq frame pe" id="bMenu" title="Menu (Esc)"></button></div>
   <div id="objs" class="frame pe"></div>
   <div id="mmwrap" class="frame"><canvas id="minimap" width="160" height="160"></canvas></div>
   <div id="toast"></div>
+  <div id="dlg" class="frame"><div id="dlgPortrait"></div><div id="dlgBody"><div id="dlgName"><span id="dlgNameT"></span><small id="dlgTitle"></small></div><div id="dlgText"></div></div><div id="dlgHint">SPACE</div></div>
   <div id="placehint"></div>
   <div id="queuebar" class="frame"></div>
   <div id="panel" class="frame empty">
@@ -170,6 +225,26 @@
   </div>
 </div>
 <div id="box"></div>
+
+<div id="pause"><div class="card frame">
+  <h2>THE RITE PAUSES</h2>
+  <button class="btn frame pe" id="pResume">Resume</button>
+  <button class="btn frame pe" id="pCheckpoint">Restart from checkpoint</button>
+  <button class="btn frame pe" id="pRestart">Restart mission</button>
+  <button class="btn frame pe" id="pQuit">Quit to title</button>
+</div></div>
+
+<div id="stage"><div class="card frame">
+  <div id="stagePortrait"></div>
+  <div id="stageBody">
+    <div id="stageKicker"></div>
+    <h2 id="stageTitle"></h2>
+    <div id="stageText"></div>
+    <div id="stageStats"></div>
+    <div id="stageDola"></div>
+    <div id="stageBtns"></div>
+  </div>
+</div></div>
 
 <div id="end">
   <h1 id="endh">VICTORY</h1>

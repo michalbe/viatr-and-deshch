@@ -63,6 +63,7 @@ export class UI {
       if (this.mouse.y < e) pan.y -= 1; if (this.mouse.y > innerHeight - e) pan.y += 1;
     }
     if (this.stick.active) pan.set(this.stick.x, this.stick.y);
+    if (this.camLock > 0) { this.camLock -= dt; pan.set(0, 0); }
     const speed = 0.9 * this.dist;
     this.target.x += pan.x * speed * dt; this.target.y += pan.y * speed * dt;
     this.camVel = pan.length() * speed;
@@ -76,7 +77,9 @@ export class UI {
     this.cam.position.set(this.target.x, ty + this.dist * Math.sin(this.pitch), this.target.y + this.dist * Math.cos(this.pitch));
     this.cam.lookAt(this.target.x, ty, this.target.y);
   }
-  centerOn(x, z) { this.target.set(x, z); }
+  centerOn(x, z) { if (this.camLock > 0 && !this.scriptMove) return; this.target.set(x, z); }
+  lockCamera(t) { this.camLock = t; }
+  scriptedCenter(x, z) { this.scriptMove = true; this.centerOn(x, z); this.scriptMove = false; }
 
   /* ------------------------------------------------------------ picking */
   groundAt(sx, sy) {
@@ -322,7 +325,7 @@ export class UI {
     if (sel.length === 1) {
       const d = e.def;
       const owner = e.team === TEAM.PLAYER ? '' : e.team === TEAM.RIVAL ? ' <span class="foe">Rival Rodina</span>' : ` <span class="neutral">${e.appeased ? 'Appeased' : 'Wild'}</span>`;
-      html += `<div class="nm">${d.name}${owner}</div><div class="tt">${d.title || ''}</div>`;
+      html += `<div class="nm">${e.name || d.name}${owner}</div><div class="tt">${e.name ? d.name + ' · ' : ''}${d.title || ''}</div>`;
       html += `<div class="hp"><i style="width:${(e.hp / e.maxHp * 100).toFixed(0)}%"></i><b>${Math.ceil(e.hp)} / ${e.maxHp}</b></div>`;
       if (e.kind === 'unit') {
         const ro = e.order?.type === 'ritual' ? e.order : null;
@@ -396,6 +399,14 @@ export class UI {
   }
   toast(msg, cls = '') { const el = $('toast'); el.textContent = msg; el.className = 'on ' + cls; this.toastT = 3.2; }
   renderObjectives() {
+    if (this.rt) {
+      const list = this.rt.objectives.filter((o) => !o.hidden && (o.state === 'active' || this.g.time - (o.doneAt || 0) < 8));
+      for (const o of list) if (o.state !== 'active' && !o.doneAt) o.doneAt = this.g.time;
+      const html = list.map((o) => `<div class="${o.state}${o.optional ? ' optional' : ''}">${o.text}</div>`).join('');
+      $('objs').innerHTML = `<div class="ot">Objectives</div><div class="ol">${html}</div>`;
+      $('objs').style.display = html ? '' : 'none';
+      return;
+    }
     const i = this.g.objective;
     const cur = OBJECTIVES[i];
     $('objs').innerHTML = cur ? `<div class="ot">Objective <small>${i + 1}/${OBJECTIVES.length}</small></div><div class="oc">${cur.text}</div>` : '<div class="oc">The Sacred Valley answers to Rodina</div>';
@@ -514,6 +525,8 @@ export class UI {
     $('bBox').addEventListener('pointerup', (e) => { e.stopPropagation(); this.boxMode = !this.boxMode; $('bBox').classList.toggle('on', this.boxMode); });
     $('bMute').addEventListener('pointerup', (e) => { e.stopPropagation(); setMuted(!isMuted()); $('bMute').innerHTML = isMuted() ? ICON.mute : ICON.sound; });
     $('bObj').addEventListener('pointerup', (e) => { e.stopPropagation(); $('objs').classList.toggle('min'); });
+    $('bMenu').addEventListener('pointerup', (e) => { e.stopPropagation(); this.onMenu?.(); });
+    $('bMenu').innerHTML = ICON.menu;
     $('again').addEventListener('click', () => location.reload());
     $('bMute').innerHTML = ICON.sound; $('bObj').innerHTML = ICON.menu;
     for (const [id, ic] of [['icw', 'wind'], ['icr', 'rain'], ['ics', 'supply']]) $(id).innerHTML = ICON[ic];
@@ -543,7 +556,8 @@ export class UI {
       else if (this.groups[n]) { const live = this.groups[n].filter((u) => !u.dead); if (live.length) { const again = this.lastGroup === n && performance.now() - this.lastGroupT < 400; this.select(live); if (again) this.centerOn(live[0].x, live[0].z + 6); this.lastGroup = n; this.lastGroupT = performance.now(); } }
       return;
     }
-    if (e.code === 'Escape') { if (this.mode) this.cancelMode(); else if (this.cmdKeys.Escape) this.cmdKeys.Escape(); else { this.g.selection = []; this.refreshPanel(true); } return; }
+    if (e.code === 'Escape') { if (this.mode) this.cancelMode(); else if (this.cmdKeys.Escape) this.cmdKeys.Escape(); else if (this.g.selection.length) { this.g.selection = []; this.refreshPanel(true); } else this.onMenu?.(); return; }
+    if (e.code === 'KeyP') { this.onMenu?.(); return; }
     if (e.code === 'Space') { const g = this.g.grodOf(0); if (g) this.centerOn(g.x, g.z + 8); e.preventDefault(); return; }
     if (e.code === 'Period') { this.selectIdle(); return; }
     if (e.code === 'F2') { const a = this.g.alive(0, (u) => u.def.kind !== 'econ'); if (a.length) this.select(a); return; }

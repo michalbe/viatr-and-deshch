@@ -1,5 +1,9 @@
 /**
- * Wind & Rain — boot, world build, loop, and the jam telemetry contract.
+ * Wind & Rain — boot, the campaign shell (title, missions, checkpoints, pause, stage screens),
+ * the world build, the frame loop, and the jam telemetry contract.
+ *
+ * One page load is one mission (or one skirmish): choosing a mission on the title screen builds
+ * that mission's map; restarting or continuing reloads the page with the right query.
  */
 import * as THREE from 'three';
 import { createRig } from '../rig.js';
@@ -14,11 +18,17 @@ import { FX } from './fx.js';
 import { Construction } from './construction.js';
 import { UI } from './ui.js';
 import { initAudio, resumeAudio, updateAudio, sfx } from './audio.js';
+import { Dialogue } from './dialogue.js';
+import { MissionRuntime } from './mission-runtime.js';
+import { Systems } from './systems.js';
+import { MISSIONS, missionById, nextMission } from '../missions/index.js';
+import { loadCampaign, newCampaign, campaign, difficulty, DIFFICULTY, DOLA, chooseDola, completeMission, checkpointFor, clearCheckpoint } from './campaign.js';
 
 const $ = (id) => document.getElementById(id);
 const bar = $('barf'), msg = $('loadmsg');
 const step = (f, m) => { bar.style.width = (f * 100).toFixed(0) + '%'; msg.textContent = m; };
 window.__GAME__ = { pos: [0, 0], fps: 0, speed: 0, score: 0, over: false, draws: 0, tris: 0 };
+const Q = new URLSearchParams(location.search);
 
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -29,12 +39,61 @@ const rig = createRig(THREE, renderer, scene, { hour: 12.5, elevation: 60, azimu
 const phone = rig.tier.name === 'phone';
 setSurfaceDefaults({ size: phone ? 256 : 512 });
 
-let game, ui, ai, fx, veg = {}, props = [], started = false;
-const SPEED = Math.max(1, Math.min(20, +(new URLSearchParams(location.search).get('speed') || 1)));
+let game, ui, ai, fx, rt = null, dialogue = null, systems = null, veg = {}, props = [], started = false, session = null, mission = null;
+const SPEED = Math.max(1, Math.min(20, +(Q.get('speed') || 1)));
 
+/* ---------------------------------------------------------------- title */
+function goto(query) { location.href = location.pathname + query + (Q.has('bg') ? (query ? '&' : '?') + 'bg=1' : ''); }
+function title() {
+  const c = loadCampaign();
+  const menu = $('menu'); menu.innerHTML = '';
+  const btn = (label, act, cls = '') => { const b = document.createElement('button'); b.className = 'btn frame pe ' + cls; b.textContent = label; b.addEventListener('click', act); menu.appendChild(b); return b; };
+  const note = (t) => { const d = document.createElement('div'); d.className = 'note'; d.textContent = t; menu.appendChild(d); };
+  const main = () => {
+    menu.innerHTML = '';
+    if (c) { const m = missionById(c.mission); btn(`Continue — ${m ? `Mission ${m.n}: ${m.title}` : 'the campaign'}`, () => goto(`?mission=${c.mission}${c.checkpoint?.mission === c.mission ? '&checkpoint=1' : ''}`)); }
+    btn('New Campaign', () => pickDifficulty());
+    if (c) btn('Missions', () => missions());
+    btn('Skirmish — The Sacred Valley', () => goto('?skirmish=1'));
+    note(c ? `${DIFFICULTY[c.difficulty]?.name || 'Standard'} difficulty · ${Object.keys(c.done).length} of ${MISSIONS.length} missions done` : 'A campaign of five missions, each with a rule the valley has never shown you.');
+  };
+  const pickDifficulty = () => {
+    menu.innerHTML = '';
+    const d = document.createElement('div'); d.className = 'note'; d.textContent = 'How hard should the valley be?'; menu.appendChild(d);
+    for (const [id, df] of Object.entries(DIFFICULTY)) { const b = btn(df.name, () => { newCampaign(id); goto('?mission=m01'); }); b.title = df.tip; }
+    note(Object.values(DIFFICULTY).map((d) => `${d.name}: ${d.tip}`).join(' '));
+    btn('Back', main);
+  };
+  const missions = () => {
+    menu.innerHTML = '';
+    const box = document.createElement('div'); box.className = 'missions'; menu.appendChild(box);
+    for (const m of MISSIONS) {
+      const un = c.unlocked.includes(m.id) || Q.has('all');
+      const b = document.createElement('button'); b.className = 'btn frame pe' + (un ? '' : ' dim');
+      b.innerHTML = `Mission ${m.n}: ${m.title}<small>${c.done[m.id] ? 'done' : un ? '' : 'locked'}</small>`;
+      b.addEventListener('click', () => goto(`?mission=${m.id}`)); box.appendChild(b);
+    }
+    btn('Back', main);
+  };
+  main();
+  $('load').style.display = 'none';
+  $('start').classList.add('on');
+}
+
+/* ---------------------------------------------------------------- the world */
 async function boot() {
+  const missionId = Q.get('mission');
+  if (!missionId && !Q.has('skirmish')) return title();
+  session = missionId ? { kind: 'mission', id: missionId } : { kind: 'skirmish' };
+  if (session.kind === 'mission') {
+    if (!loadCampaign()) newCampaign(Q.get('difficulty') || 'standard');
+    const entry = missionById(session.id);
+    if (!entry) return title();
+    mission = (await entry.load()).default;
+    mission.entry = entry;
+  }
   step(0.05, 'shaping the valley');
-  const mapId = new URLSearchParams(location.search).get('map') || 'sacred_valley';
+  const mapId = Q.get('map') || (mission ? mission.map : 'sacred_valley');
   loadMap((await import(`../maps/${mapId}.js`)).default);
   const terrain = buildTerrain(scene, rig.tier.name);
   const layout = vegetation();
@@ -42,7 +101,7 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 0));
 
   step(0.15, 'reading the asset modules');
-  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft', 'founding_stake', 'root_wall', 'leshonok'];
+  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft', 'founding_stake', 'root_wall', 'leshonok', ...(mission?.assets || [])];
   await preloadAssets(names.map((n) => `./assets/${n}.js`));
 
   step(0.3, 'planting the forest');
@@ -59,6 +118,7 @@ async function boot() {
   fx = new FX(scene, camera);
   game = new Game(scene, fx);
   game.cons = new Construction(scene, fx);
+  game.terrain = terrain;
   for (const s of game.springs) {
     const p = await makeProp('sacred_spring', S);
     p.position.set(s.x, heightAt(s.x, s.z) - 0.05, s.z); scene.add(p); s.prop = p; props.push({ obj: p, x: s.x, z: s.z });
@@ -79,47 +139,61 @@ async function boot() {
     scene.add(wall); props.push({ obj: wall, x, z });
     game.walls.push({ x, z, prop: wall, cells: blockCircle(x, z, 3.6), open: false });
   }
+  systems = new Systems({ scene, game, fx, rig, terrain, props, makeProp: (n) => makeProp(n, S) });
+  game.systems = systems;
+  if (mission?.world) await mission.world({ game, systems, scene, props, makeProp: (n) => makeProp(n, S), heightAt, map: M });
 
   step(0.55, 'carving the clans');
   const jobs = [];
   for (const team of [0, 1]) {
-    for (const ut of Object.keys(UNITS)) if (ut !== 'spirit') jobs.push(makeUnitModel(UNITS[ut].asset, team, UNITS[ut].height));
+    for (const ut of Object.keys(UNITS)) if (UNITS[ut].kind !== 'spirit' && UNITS[ut].kind !== 'nav') jobs.push(makeUnitModel(UNITS[ut].asset, team, UNITS[ut].height));
     for (const bt of Object.keys(BUILDINGS)) jobs.push(makeBuildingModel(BUILDINGS[bt].asset, team, S));
   }
-  jobs.push(makeUnitModel(UNITS.spirit.asset, TEAM.NEUTRAL, UNITS.spirit.height));
+  for (const ut of Object.keys(UNITS)) if (UNITS[ut].kind === 'spirit' || UNITS[ut].kind === 'nav') jobs.push(makeUnitModel(UNITS[ut].asset, TEAM.NEUTRAL, UNITS[ut].height));
   await Promise.all(jobs);
 
   step(0.75, 'painting portraits');
   const portraits = {};
   for (const ut of Object.keys(UNITS)) {
-    const m = await makeUnitModel(UNITS[ut].asset, ut === 'spirit' ? TEAM.NEUTRAL : 0, UNITS[ut].height);
+    const m = await makeUnitModel(UNITS[ut].asset, UNITS[ut].kind === 'spirit' || UNITS[ut].kind === 'nav' ? TEAM.NEUTRAL : 0, UNITS[ut].height);
     portraits[ut] = portrait(renderer, m.root, { yaw: 0.45, zoom: ut === 'deer' ? 1.3 : ut === 'spirit' ? 1.6 : 2.4, focusY: ut === 'bear' ? 0.6 : ut === 'deer' ? 0.72 : 0.84 });
   }
   for (const bt of Object.keys(BUILDINGS)) portraits[bt] = portrait(renderer, await makeBuildingModel(BUILDINGS[bt].asset, 0, S), { yaw: 0.6, zoom: 1.05, focusY: 0.5 });
 
   step(0.85, 'raising the settlements');
-  await setupMatch(game);
   ai = new RivalAI(game);
+  ai.diff = difficulty();
   ui = new UI(game, camera, canvas, portraits);
   ui.treeDots = [...layout.pines, ...layout.birches].filter((_, i) => i % 2 === 0);
   ui.onResize = () => { renderer.setSize(innerWidth, innerHeight, false); rig.resize(innerWidth, innerHeight); };
-  game.terrain = terrain;
+  ui.onMenu = () => togglePause();
   const worn = (b) => wearGround(terrain, b.x, b.z, b.def.size * 0.95 + 3);
-  for (const b of game.buildings) worn(b);
   game.on('placed', (b) => { worn(b); applyFog(terrain, game.vis, game.seen); });
   game.on('fog', () => fogVisuals());
+  dialogue = new Dialogue(renderer);
+
+  let restoreData = null;
+  if (session.kind === 'mission') {
+    rt = new MissionRuntime({ game, ui, ai, fx, rig, scene, dialogue, def: mission, systems, onEnd: (r, summary) => endMission(r, summary) });
+    ui.rt = rt;
+    const cp = Q.has('checkpoint') ? checkpointFor(mission.id) : null;
+    if (cp) { restoreData = cp.data; await game.restore(cp.data.game); if (cp.data.systems) systems.restore(cp.data.systems); }
+  } else {
+    await setupMatch(game);
+  }
+  for (const b of game.buildings) worn(b);
   game.updateFog(); fogVisuals();
   ui.updateCamera(0);
   rig.refresh();
 
   step(1, 'ready');
-  // compile everything before the first real frame, so the tap does not hitch
   renderer.compile(scene, camera);
   await rig.ready.catch(() => {});
   $('load').style.display = 'none';
-  $('start').classList.add('on');
   window.__READY__ = true;
-  window.__DBG__ = { game, ui, camera, rig, renderer };
+  window.__DBG__ = { game, ui, camera, rig, renderer, rt, ai, systems, dialogue };
+  if (session.kind === 'mission') intro(restoreData);
+  else { $('startSub').textContent = 'Skirmish · The Sacred Valley'; $('menu').innerHTML = ''; const b = document.createElement('button'); b.className = 'btn frame pe'; b.textContent = 'Begin the Rite'; b.addEventListener('click', () => start()); $('menu').appendChild(b); $('start').classList.add('on'); }
 }
 
 function fogVisuals() {
@@ -137,27 +211,75 @@ function fogVisuals() {
     });
     if (changed) for (const m of ch.meshes) m.instanceColor.needsUpdate = true;
   }
-  for (const p of props) p.obj.visible = game.cellSeen(p.x, p.z) && !(p.obj === game.springs.find((s) => s.prop === p.obj)?.prop && game.springs.find((s) => s.prop === p.obj)?.shrine);
+  for (const p of props) p.obj.visible = (p.always || game.cellSeen(p.x, p.z)) && !(p.obj === game.springs.find((s) => s.prop === p.obj)?.prop && game.springs.find((s) => s.prop === p.obj)?.shrine);
 }
 
-function start() {
+/* ---------------------------------------------------------------- stage screens */
+async function stage({ kicker, title, lines = [], stats = [], speaker = 'zherca', dola = null, buttons = [] }) {
+  $('stageKicker').textContent = kicker; $('stageTitle').textContent = title;
+  $('stageText').innerHTML = lines.map((l) => Array.isArray(l) ? `<div class="line"><b>${l[0]}</b> — ${l[1]}</div>` : `<div class="line">${l}</div>`).join('');
+  $('stageStats').innerHTML = stats.map(([k, v]) => `${k} <b>${v}</b>`).join(' · ');
+  const dolaBox = $('stageDola'); dolaBox.innerHTML = '';
+  let chosen = null;
+  if (dola) for (const id of dola) {
+    const d = DOLA[id]; const b = document.createElement('button'); b.className = 'dola frame pe';
+    b.innerHTML = `<b>${d.name}</b><i>${d.line}</i><span>${d.text}</span>`;
+    b.addEventListener('click', () => { chosen = id; for (const o of dolaBox.children) o.classList.toggle('on', o === b); for (const x of $('stageBtns').children) x.classList.remove('dim'); });
+    dolaBox.appendChild(b);
+  }
+  const bb = $('stageBtns'); bb.innerHTML = '';
+  for (const [label, act, needsDola] of buttons) { const b = document.createElement('button'); b.className = 'btn frame pe' + (needsDola && dola ? ' dim' : ''); b.textContent = label; b.addEventListener('click', () => { if (needsDola && dola && !chosen) return; act(chosen); }); bb.appendChild(b); }
+  $('stagePortrait').style.backgroundImage = '';
+  $('stage').classList.add('on');
+  if (dialogue && mission?.speakers?.some((s) => s.id === speaker)) { dialogue.defineSpeakers(mission.speakers); const url = await dialogue.portraitFor(speaker, 320); $('stagePortrait').style.backgroundImage = url ? `url(${url})` : ''; }
+}
+function intro(restoreData) {
+  const m = mission;
+  stage({ kicker: `Mission ${m.entry.n}${restoreData ? ' · from the checkpoint' : ''}`, title: m.title, lines: [m.entry.premise], speaker: m.introSpeaker || 'zherca',
+    buttons: [['Begin the Rite', () => { $('stage').classList.remove('on'); start(restoreData); }]] });
+}
+function endMission(result, summary) {
+  const m = mission, next = nextMission(m.id);
+  const t = game.teams[0], s = Math.floor(game.time);
+  const stats = [['Time', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`], ['Rodina lost', t.lost], ['Enemies slain', game.stats.kills], ['Wind gathered', Math.floor(t.windTotal)], ['Rain gathered', Math.floor(t.rainTotal)]];
+  const lines = result === 'victory' ? [...(m.summary ? m.summary(rt, summary) : []), summary.closing || ''] : [summary.reason || 'The Rodina is scattered.'];
+  if (result === 'victory') completeMission(m.id, { ...summary, time: s, lost: t.lost }, next?.id);
+  const buttons = result === 'victory'
+    ? [[next ? `Continue — Mission ${next.n}: ${next.title}` : 'The pitch ends here — back to the title', (chosen) => { if (chosen) chooseDola(chosen); goto(next ? `?mission=${next.id}` : ''); }, true], ['Title', () => goto('')]]
+    : [['Restart from checkpoint', () => goto(`?mission=${m.id}&checkpoint=1`)], ['Restart mission', () => { clearCheckpoint(); goto(`?mission=${m.id}`); }], ['Title', () => goto('')]];
+  setTimeout(() => stage({ kicker: result === 'victory' ? `Mission ${m.entry.n} complete` : `Mission ${m.entry.n}`, title: result === 'victory' ? m.title.toUpperCase() : 'THE RODINA FALLS', lines, stats, speaker: result === 'victory' ? (m.outroSpeaker || 'zherca') : 'vitez', dola: result === 'victory' ? m.dola : null, buttons }), 2200);
+}
+function togglePause(force) {
+  if (!started || (rt && rt.over)) return;
+  const on = force ?? !game.paused;
+  game.paused = on; $('pause').classList.toggle('on', on);
+  $('pCheckpoint').style.display = rt && checkpointFor(mission?.id) ? '' : 'none';
+}
+$('pResume').addEventListener('click', () => togglePause(false));
+$('pCheckpoint').addEventListener('click', () => goto(`?mission=${mission.id}&checkpoint=1`));
+$('pRestart').addEventListener('click', () => { if (rt) clearCheckpoint(); goto(session.kind === 'mission' ? `?mission=${mission.id}` : '?skirmish=1'); });
+$('pQuit').addEventListener('click', () => goto(''));
+$('again')?.addEventListener('click', () => goto(session?.kind === 'mission' ? `?mission=${mission.id}` : '?skirmish=1'));
+
+function start(restoreData = null) {
   if (started) return;
   started = true;
   initAudio(); resumeAudio();
   $('start').classList.remove('on');
   $('ui').classList.add('on');
   if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) $('touch').classList.add('on');
-  game.teams[0].wind = 50; game.teams[0].windTotal = 0; game.teams[0].rain = 0; game.teams[0].rainTotal = 0; game.time = 0;
-  ui.refreshPanel(true); ui.renderObjectives();
-  ui.toast('Your Vietras dance for Wind. Raise, recruit, and find the rival Rodina.', 'good');
-  sfx('objective');
+  if (rt) { rt.start(restoreData); ui.renderObjectives(); }
+  else {
+    game.teams[0].wind = 50; game.teams[0].windTotal = 0; game.teams[0].rain = 0; game.teams[0].rainTotal = 0; game.time = 0;
+    ui.refreshPanel(true); ui.renderObjectives();
+    ui.toast('Your Vietras dance for Wind. Raise, recruit, and find the rival Rodina.', 'good');
+    sfx('objective');
+  }
 }
-$('startb').addEventListener('click', start);
-$('startb').addEventListener('touchend', (e) => { e.preventDefault(); start(); });
 window.__START__ = start;
 
 /* ---------------------------------------------------------------- loop */
-let last = performance.now(), fpsAcc = 0, fpsN = 0, fpsT = 0, fps = 0;
+let last = performance.now(), fpsAcc = 0, fpsN = 0, fps = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const real = Math.max(0.0001, (now - last) / 1000);
@@ -168,9 +290,15 @@ function frame(now) {
 }
 function tick(dt, draw) {
   if (!game || !ui) return;
-  for (let k = 0; k < SPEED; k++) {
-    if (started) ai.update(dt);
-    game.update(started ? dt : dt * 0.6);
+  const stageOpen = $('stage').classList.contains('on');
+  if (!game.paused && !stageOpen) {
+    for (let k = 0; k < SPEED; k++) {
+      if (started) ai.update(dt);
+      game.update(started ? dt : dt * 0.6);
+      if (started && rt) rt.tick(dt);
+      if (started && systems) systems.update(dt);
+    }
+    if (dialogue) dialogue.update(dt);
   }
   ui.updateCamera(dt);
   overlays(dt);
@@ -207,6 +335,7 @@ function overlays(dt) {
     if (sel.has(u) || u.hp < u.maxHp) fx.bar(u.x, u.y + u.def.height + 0.45, u.z, Math.max(0.9, u.def.radius * 1.8), u.hp / u.maxHp, col);
     if (u.anim.mode === 'dance') fx.windAround(u.x, u.y, u.z, t + u.id, 1);
     if (u.ut === 'spirit') fx.spiritAura(u.x, u.y, u.z);
+    if (u.fallen) fx.ring(u.x, u.y, u.z, u.def.radius * 1.2, 0xffe07a);
   }
   for (const b of game.buildings) {
     const shown = ui.shown(b);
@@ -219,7 +348,8 @@ function overlays(dt) {
     else if (sel.has(b) || b.hp < b.maxHp) fx.bar(b.x, y + b.def.height + 1, b.z, b.def.size * 0.5, b.hp / b.maxHp, col);
     if (b.bt === 'shrine' && b.built) {
       const n = b.workers.filter((w) => !w.dead && w.anim.mode === 'rite').length;
-      if (n) fx.rainOver(b.x, y, b.z, n);
+      if (n) fx.rainOver(b.x, y, b.z, n * (b.state === 'bound' ? 2.5 : 1));
+      if (b.state === 'bound' || b.state === 'corrupted') fx.corruption(b.x, y, b.z, b.def.size * 0.6);
     }
     if (sel.has(b) && b.rally && b.team === 0) fx.ring(b.rally.x, heightAt(b.rally.x, b.rally.z), b.rally.z, 0.6 + 0.15 * Math.sin(t * 5), 0xffe07a);
   }
@@ -228,14 +358,15 @@ function overlays(dt) {
     if (sel.has(s)) fx.ring(s.x, s.y, s.z, s.radius + 0.4, 0xe8ffb0);
     if (s.st === 'idol' && Math.random() < (s.state === 'sleeping' ? 0.3 : 0.9)) fx.sparkle(s.x + (Math.random() - 0.5) * 3, s.y + 5 + Math.random() * 2, s.z + (Math.random() - 0.5) * 3, 1, s.state === 'awake' ? [0.9, 0.98, 0.7] : [0.62, 0.94, 0.78]);
     if (s.st === 'mound' && s.state !== 'consecrated' && Math.random() < 0.25) fx.sparkle(s.x + (Math.random() - 0.5) * 4, s.y + 0.3, s.z + (Math.random() - 0.5) * 4, 1, [0.5, 0.3, 0.6]);
+    if (s.st === 'ring' && s.state !== 'appeased' && Math.random() < 0.5) fx.sparkle(s.x + Math.cos(t * 2 + s.id) * s.radius, s.y + 0.5, s.z + Math.sin(t * 2 + s.id) * s.radius, 1, [0.8, 0.9, 1.0]);
   }
+  if (systems) systems.overlays(fx, sel);
   fx.endOverlays();
 }
 
 requestAnimationFrame(frame);
-// a hidden tab gets no animation frames; with ?bg=1 the simulation keeps stepping at 10 Hz (remote checks, soak tests)
-// Chrome throttles hidden-tab timers to once a second, so each beat steps a whole second in ten fixed slices and draws once
-if (new URLSearchParams(location.search).has('bg')) setInterval(() => {
+// Chrome throttles hidden-tab timers to once a second, so each beat steps the real elapsed time in fixed slices and draws once
+if (Q.has('bg')) setInterval(() => {
   if (!document.hidden) return;
   const now = performance.now(), n = Math.min(20, Math.round((now - last) / 100));
   if (n < 1) return;
