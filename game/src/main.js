@@ -22,7 +22,7 @@ import { Dialogue } from './dialogue.js';
 import { MissionRuntime } from './mission-runtime.js';
 import { Systems } from './systems.js';
 import { MISSIONS, missionById, nextMission } from '../missions/index.js';
-import { loadCampaign, newCampaign, campaign, difficulty, DIFFICULTY, DOLA, chooseDola, completeMission, checkpointFor, clearCheckpoint } from './campaign.js';
+import { loadCampaign, newCampaign, campaign, difficulty, DIFFICULTY, DOLA, chooseDola, completeMission, checkpointFor, clearCheckpoint, dolaEffects } from './campaign.js';
 
 const $ = (id) => document.getElementById(id);
 const bar = $('barf'), msg = $('loadmsg');
@@ -119,6 +119,7 @@ async function boot() {
   game = new Game(scene, fx);
   game.cons = new Construction(scene, fx);
   game.terrain = terrain;
+  game.dola = session.kind === 'mission' ? dolaEffects() : {};
   for (const s of game.springs) {
     const p = await makeProp('sacred_spring', S);
     p.position.set(s.x, heightAt(s.x, s.z) - 0.05, s.z); scene.add(p); s.prop = p; props.push({ obj: p, x: s.x, z: s.z });

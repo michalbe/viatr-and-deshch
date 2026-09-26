@@ -57,6 +57,7 @@ export class Game {
       anim: { mode: 'idle', t: Math.random() * 10, phase: 0, attackT: 9, attackDur: 0.6 }, speedNow: 0,
       model, lastHitBy: null, home: [x, z], scanT: Math.random() * 0.5, wave: false,
     };
+    if (ut === 'deer' && team === TEAM.PLAYER && this.dola?.jelenikSight) u.sight = Math.round(u.sight * this.dola.jelenikSight);
     model.root.position.set(x, u.y, z);
     model.root.rotation.y = face;
     this.scene.add(model.root);
@@ -97,6 +98,7 @@ export class Game {
       radius: def.size * 0.5, sight: def.sight, built, progress: built ? 1 : 0, queue: [], rally: null, dead: false, deadT: 0,
       cells: this.footprintCells(def, x, z), spring: null, workers: [], model: null, root: new THREE.Group(), lastHitT: -99,
     };
+    if (bt === 'khata' && team === TEAM.PLAYER && this.dola?.khataHp) { b.maxHp = Math.round(b.maxHp * this.dola.khataHp); b.hp = built ? b.maxHp : b.hp; }
     for (const k of b.cells) dynBlock[k]++;
     // push units out of the footprint
     for (const u of this.units) if (!u.dead && Math.abs(u.x - x) < def.size / 2 + 0.5 && Math.abs(u.z - z) < def.size / 2 + 0.5) {
@@ -206,7 +208,7 @@ export class Game {
   }
   completeRitual(u, o) {
     const r = RITUALS[o.ritual], t = o.target;
-    if (r.cost) this.pay(u.team, r.cost);
+    if (r.cost) this.pay(u.team, { wind: r.cost.wind * (this.dola?.offerCost || 1), rain: (r.cost.rain || 0) * (this.dola?.offerCost || 1) });
     if (r.cooldown) (u.cooldowns ||= {})[o.ritual] = this.time + r.cooldown;
     const k = targetKind(t);
     // default results; missions listen to 'ritual' and add their own
@@ -220,7 +222,7 @@ export class Game {
       else if (k === 'building' && t.state) { const prev = t.state; t.state = null; this.emit('buildingState', t, prev); this.fx.puff(t.x, t.y + 3, t.z, 30, [0.6, 0.85, 1.0], 5, 0.7, 2.5); }
       else if (k === 'idol') { this.setSiteState(t, 'blessed'); this.fx.puff(t.x, t.y + 4, t.z, 20, [0.9, 0.9, 0.85], 3, 0.6, 2); }
     }
-    else if (o.ritual === 'ward') { this.systems?.addWard(t.x, t.z, r.radius * (this.dola?.wardDuration ? 1 : 1), r.duration, u.team); }
+    else if (o.ritual === 'ward') { this.systems?.addWard(t.x, t.z, r.radius, r.duration * (this.dola?.wardDuration || 1), u.team); }
     else if (o.ritual === 'sight') { this.reveal(t.x, t.z, r.radius, r.duration); this.fx.puff(t.x, heightAt(t.x, t.z) + 2, t.z, 16, [0.8, 0.7, 1.0], 3, 0.5, 2); }
     this.emit('ritual', { ritual: o.ritual, unit: u, target: t });
     this.order(u, null);
@@ -229,7 +231,7 @@ export class Game {
   freeShrine(team, near) {
     let best = null, bd = 1e9;
     for (const b of this.aliveB(team, 'shrine')) {
-      if (!b.built || b.workers.length >= SHRINE_SLOTS) continue;
+      if (!b.built || b.workers.length >= SHRINE_SLOTS + (team === TEAM.PLAYER ? (this.dola?.zdroySlots || 0) : 0)) continue;
       const d = Math.hypot(b.x - near.x, b.z - near.z);
       if (d < bd) { bd = d; best = b; }
     }
@@ -533,7 +535,7 @@ export class Game {
     if (u.def.brain === 'upir') return this.upirBrain(u, dt);
     if (u.def.brain === 'striga') return this.strigaBrain(u, dt);
     if (!o) {
-      u.anim.mode = 'idle'; u.speedNow = 0;
+      u.anim.mode = 'idle'; u.speedNow = 0; u.struck = false;
       if (u.next.length) { u.order = u.next.shift(); return; }
       if (u.def.kind !== 'econ' && u.scanT <= 0) {
         u.scanT = 0.45;
@@ -603,14 +605,15 @@ export class Game {
       u.face = turn(u.face, Math.atan2(g.x - u.x, g.z - u.z) + Math.PI, dt * 4);
       if (u.interruptT > 0) { u.anim.mode = 'idle'; return; }
       u.anim.mode = 'dance';
-      const t = this.teams[u.team]; t.wind += WIND_PER_VIETRA * dt; t.windTotal += WIND_PER_VIETRA * dt;
+      const wr = WIND_PER_VIETRA * (u.team === TEAM.PLAYER ? (this.dola?.windRate || 1) : 1);
+      const t = this.teams[u.team]; t.wind += wr * dt; t.windTotal += wr * dt;
       return;
     }
     if (o.type === 'rite') {
       const s = o.shrine;
       if (!s || s.dead || !s.built) { this.order(u, null); return; }
       if (!u.slot) {
-        if (s.workers.length >= SHRINE_SLOTS && !s.workers.includes(u)) { this.order(u, null); this.emit('toast', 'That Zdroy is full', u); return; }
+        if (s.workers.length >= SHRINE_SLOTS + (u.team === TEAM.PLAYER ? (this.dola?.zdroySlots || 0) : 0) && !s.workers.includes(u)) { this.order(u, null); this.emit('toast', 'That Zdroy is full', u); return; }
         u.slot = this.riteSpot(s, u); u.slotOf = s;
       }
       const [sx, sz] = u.slot;
@@ -643,7 +646,7 @@ export class Game {
         // mend: pay Wind by the second, heal by the second, stop when whole
         const team = this.teams[u.team];
         if (team.wind < r.windPerSecond * dt) { u.anim.mode = 'idle'; if (u.team === TEAM.PLAYER && !o.warned) { o.warned = true; this.emit('toast', 'No Wind left to mend with'); } return; }
-        team.wind -= r.windPerSecond * dt;
+        team.wind -= r.windPerSecond * dt * (u.team === TEAM.PLAYER ? (this.dola?.mendCost || 1) : 1);
         t.hp = Math.min(t.maxHp, t.hp + t.maxHp * r.hpPerSecond * dt);
         if (Math.random() < dt * 3) this.fx.mendMotes?.(u, t);
         return;
@@ -690,6 +693,7 @@ export class Game {
   dmgAgainst(u, t) {
     let d = u.def.dmg * (0.85 + Math.random() * 0.3);
     if (u.def.kind === 'nav') d *= 0.6 + 0.6 * (this.systems?.daynight?.darkness ?? 0);     // the dead are strong in the dark
+    if (u.ut === 'vitez' && u.team === TEAM.PLAYER && this.dola?.vitezFirst && !u.struck) { u.struck = true; d *= this.dola.vitezFirst; this.fx.puff(t.x, (t.y ?? heightAt(t.x, t.z)) + 1.5, t.z, 12, [0.95, 0.9, 0.6], 1.5, 0.8, 1.6); sfx('thunderclap', 0.25); }
     if (t.def?.kind === 'nav' && u.def.ranged && this.dola?.arrowSpirit) d *= this.dola.arrowSpirit;
     if (t.kind === 'building') d *= u.def.vsBuilding || 1;
     else if (t.def.kind === 'econ') d *= u.def.vsEcon || 1;
