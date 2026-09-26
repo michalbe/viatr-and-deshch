@@ -25,8 +25,10 @@ export default function (THREE) {
   for (const s of [1, -1]) add(cart, rings([{ y: 0.06, rx: 0.42, rz: 0.42 }, { y: -0.06, rx: 0.42, rz: 0.42 }], 10, { capTop: true, capBottom: true }), 'wheel', { pos: [s * 0.75, 0, 0], rot: [0, 0, Math.PI / 2] });
   add(cart, sweep([{ p: [-0.55, 0.3, 1.0], rx: 0.04 }, { p: [-0.5, 0.6, 2.2], rx: 0.035 }], 5, { capStart: true, capEnd: true }), 'wood');
   add(cart, sweep([{ p: [0.55, 0.3, 1.0], rx: 0.04 }, { p: [0.5, 0.6, 2.2], rx: 0.035 }], 5, { capStart: true, capEnd: true }), 'wood');
-  for (let i = 0; i < 5; i++) add(cart, blob(0.3 + (i % 2) * 0.1, 0.25, 0.3, 7, 4), 'bundle', { pos: [(i % 3 - 1) * 0.36, 0.7, -0.6 + (i % 2) * 0.7 + i * 0.1] });
-  add(cart, sheet(1.5, 2.0, { sag: -0.3, wave: 0.04, taper: 0, rows: 4, cols: 4 }), 'cloth', { mat: K.team2, pos: [0, 0.9, 1.0], rot: [-Math.PI / 2, 0, 0] });
+  // the load: a heap under the clan's tarp, tied down, with two bundles poking out at the back
+  add(cart, blob(0.72, 0.42, 1.05, 10, 5), 'cloth', { mat: K.team, pos: [0, 0.62, -0.05] });
+  for (let i = 0; i < 2; i++) add(cart, blob(0.26, 0.2, 0.26, 7, 4), 'bundle', { pos: [(i - 0.5) * 0.5, 0.62, -0.95] });
+  for (const z of [-0.5, 0.4]) add(cart, sweep([{ p: [-0.75, 0.55, z], rx: 0.02 }, { p: [0, 1.06, z], rx: 0.02 }, { p: [0.75, 0.55, z], rx: 0.02 }], 4), 'leather');
   // the old man pulling
   const man = joint(g, 0, 0.95, 1.9);
   add(man, rings([{ y: 0.55, rx: 0.12, rz: 0.1 }, { y: 0.48, rx: 0.28, rz: 0.2 }, { y: 0.2, rx: 0.26, rz: 0.2 }, { y: -0.1, rx: 0.24, rz: 0.19 }, { y: -0.5, rx: 0.26, rz: 0.2 }], 8, { capTop: true }), 'wool');
