@@ -33,9 +33,8 @@ export default function (THREE) {
     add(sh, limb(0.3, [[0.07, 0.065], [0.06, 0.055], [0.055, 0.05]], 7), 'skin', { mat: ghost });
     add(el, limb(0.3, [[0.055, 0.05], [0.05, 0.045], [0.045, 0.04]], 7), 'skin', { mat: ghost });
     add(el, blob(0.07, 0.09, 0.06, 7, 4), 'skin', { mat: ghost, pos: [0, -0.33, 0.01] });
-    add(el, ribbon(0.8, 0.14, [s * 0.2, -1, 0.15], [1, 0, 0], 0.1, s), 'gown', { mat: ghost, pos: [0, -0.1, 0] });
   }
-  lShoulder.rotation.set(-0.4, 0, 1.1); rShoulder.rotation.set(-0.4, 0, -1.1); lElbow.rotation.set(-0.5, 0, 0.5); rElbow.rotation.set(-0.5, 0, -0.5);
+  lShoulder.rotation.set(-0.3, 0, 0.55); rShoulder.rotation.set(-0.3, 0, -0.55); lElbow.rotation.set(-0.6, 0, 0.3); rElbow.rotation.set(-0.6, 0, -0.3);
   for (const [hip, knee] of [[lHip, lKnee], [rHip, rKnee]]) { add(hip, limb(0.4, [[0.06, 0.06], [0.05, 0.05]], 5), 'skin', { mat: ghost }); add(knee, limb(0.4, [[0.05, 0.05], [0.04, 0.04]], 5), 'skin', { mat: ghost }); }
   add(hips, blob(0.5, 0.08, 0.5, 8, 2), 'glow', { mat: glowMat, pos: [0, -1.2, 0] });
   return K.finish(g, { hips, spine, head, lShoulder, lElbow, rShoulder, rElbow, lHip, lKnee, rHip, rKnee });
