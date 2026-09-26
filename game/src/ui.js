@@ -323,6 +323,7 @@ export class UI {
       if (e.kind === 'corpse') html += `<div class="st">A Zherca can consecrate it so it stays down.</div>`;
       else if (e.st === 'idol') html += `<div class="st">${e.state === 'sleeping' ? 'A Zherca can Wake it, or make an Offering.' : e.state === 'awake' ? 'It watches the valley.' : ''}</div>`;
       else if (e.st === 'mound') html += `<div class="st">${e.state === 'consecrated' ? 'The dead here sleep.' : 'The dead here do not sleep. Consecrate it.'}</div>`;
+      else if (e.st === 'ring') html += `<div class="st">${e.state === 'appeased' ? 'The Vila here is a friend of the Rodina.' : 'A Vila dances here. Keep out of the ring, or make an Offering.'}</div>`;
       $('info').innerHTML = html; this.syncPanelH(); $('queuebar').classList.remove('on'); $('cmds').innerHTML = ''; this.cmdKeys = {}; this.lastCmdSig = 'site'; return;
     }
     if (sel.length === 1) {

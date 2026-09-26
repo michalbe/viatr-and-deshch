@@ -705,6 +705,7 @@ export class Game {
   dmgAgainst(u, t) {
     let d = u.def.dmg * (0.85 + Math.random() * 0.3);
     if (u.def.kind === 'nav') d *= 0.6 + 0.6 * (this.systems?.daynight?.darkness ?? 0);     // the dead are strong in the dark
+    if (t.def?.civil) d *= 0.4;                                                             // a cart is slow to die: there is time to reach it
     if (u.ut === 'vitez' && u.team === TEAM.PLAYER && this.dola?.vitezFirst && !u.struck) { u.struck = true; d *= this.dola.vitezFirst; this.fx.puff(t.x, (t.y ?? heightAt(t.x, t.z)) + 1.5, t.z, 12, [0.95, 0.9, 0.6], 1.5, 0.8, 1.6); sfx('thunderclap', 0.25); }
     if (t.def?.kind === 'nav' && u.def.ranged && this.dola?.arrowSpirit) d *= this.dola.arrowSpirit;
     if (t.kind === 'building') d *= u.def.vsBuilding || 1;
@@ -714,7 +715,7 @@ export class Game {
   nearestEnemy(u, r) {
     let best = null, bd = r * r;
     for (const e of this.units) {
-      if (e.dead || e.team === u.team) continue;
+      if (e.dead || e.team === u.team || e.def.civil) continue;     // nobody draws on a family with a cart
       if (e.def.brain === 'leshy' && (e.appeased || (!e.hostile && Math.hypot(e.x - u.x, e.z - u.z) > 6))) continue;   // the Leshy is left alone unless it has turned on us
       if (e.def.kind === 'spirit' && e.def.brain !== 'leshy' && (e.appeased || e.def.lure || (!e.hostile && e.def.brain !== 'leshonok' && Math.hypot(e.x - u.x, e.z - u.z) > 6))) continue;   // no one picks a fight with a light, a friend, or a spirit minding its own
       const d = (e.x - u.x) ** 2 + (e.z - u.z) ** 2;
