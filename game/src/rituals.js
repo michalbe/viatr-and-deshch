@@ -23,7 +23,7 @@ export function targetKind(t) {
   if (t.kind === 'site') return t.st;              // idol | mound | ring | stake
   if (t.kind === 'corpse') return 'corpse';
   if (t.kind === 'building') return 'building';
-  if (t.kind === 'unit') return t.def.kind === 'spirit' ? 'spirit' : null;
+  if (t.kind === 'unit') return t.def.negotiable ? 'spirit' : null;
   if (t.kind === 'ground') return 'ground';
   return null;
 }

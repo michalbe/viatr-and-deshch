@@ -30,7 +30,8 @@ export const UNITS = {
   vitez:    { name: 'Vitez',      title: 'Heavy Warrior',   asset: 'vitez',     wind: 100, rain: 25, supply: 2, time: 18, hp: 280,  dmg: 21, cd: 1.6, range: 2.0, speed: 2.9, sight: 13, kind: 'mil',   radius: 0.85, height: 3.38, key: 'X' },
   deer:     { name: 'Jelenik',    title: 'Deer Rider · Scout',  asset: 'deer_rider',wind: 50,  rain: 50, supply: 1, time: 16, hp: 140,  dmg: 12, cd: 1.1, range: 2.4, speed: 7.2, sight: 24, kind: 'mil',   radius: 1.17,  height: 5.44,  key: 'D', vsEcon: 2.2 },
   bear:     { name: 'Medved',     title: 'Heavy Beast',     asset: 'bear',      wind: 100, rain: 0,  supply: 2, time: 22, hp: 440,  dmg: 26, cd: 1.9, range: 2.6, speed: 2.5, sight: 13, kind: 'beast', radius: 1.43,  height: 2.46,  key: 'B', vsBuilding: 3 },
-  spirit:   { name: 'Leshy', title: 'Guardian of the Forest', asset: 'forest_spirit', wind: 0, rain: 0, supply: 0, time: 0, hp: 1500, dmg: 48, cd: 2.4, range: 3.6, speed: 2.2, sight: 15, kind: 'spirit', radius: 1.82, height: 7.38 },
+  spirit:   { name: 'Leshy', title: 'Guardian of the Forest', asset: 'forest_spirit', wind: 0, rain: 0, supply: 0, time: 0, hp: 1500, dmg: 48, cd: 2.4, range: 3.6, speed: 2.2, sight: 15, kind: 'spirit', brain: 'leshy', negotiable: true, radius: 1.82, height: 7.38 },
+  leshonok: { name: 'Leshonok', title: 'Child of the forest', asset: 'leshonok', wind: 0, rain: 0, supply: 0, time: 0, hp: 90, dmg: 9, cd: 1.0, range: 1.6, speed: 5.4, sight: 14, kind: 'spirit', brain: 'leshonok', radius: 0.5, height: 1.7 },
 };
 
 /** size = footprint in metres (square), used for the path grid and selection. */

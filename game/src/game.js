@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { UNITS, BUILDINGS, TEAM, START, LAYOUT, WIND_PER_VIETRA, RAIN_PER_ZHERCA, SHRINE_SLOTS, DANCE_RADIUS, INTERRUPT_S, OBJECTIVES, MAP, clamp } from './config.js';
-import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap } from './terrain.js';
+import { heightAt, G, cellOf, cellCenter, dynBlock, staticBlock, blocked, inMap, unblockCells } from './terrain.js';
 import { findPath, lineFree, nearestFree } from './path.js';
 import { makeUnitModel, makeBuildingModel } from './models.js';
 import { animate, animateDeath } from './anim.js';
@@ -32,6 +32,8 @@ export class Game {
     this.sites = [];                   // idols, mounds, rings: selectable places with a state
     this.reveals = [];                 // temporary vision: { x, z, r, t }
     this.flags = {};                   // campaign / mission facts: leshyAppeased, leshyKilled, ...
+    this.walls = [];                   // root walls the forest can withdraw: { prop, cells }
+    this.pendingSpawns = [];           // { ut, team, x, z, at, home }
   }
   on(ev, fn) { (this.listeners[ev] ||= []).push(fn); }
   emit(ev, ...a) { for (const f of this.listeners[ev] || []) f(...a); }
@@ -173,11 +175,16 @@ export class Game {
   }
   attack(units, target) { for (const u of units) this.order(u, { type: 'attack', target }); }
   stop(units) { for (const u of units) this.order(u, null); }
-  dance(units) {
+  dance(units, { auto = false } = {}) {
+    let far = false;
     for (const u of units) if (u.ut === 'vietra') {
       const g = this.grodOf(u.team);
-      if (g) this.order(u, { type: 'dance', grod: g });
+      if (!g) continue;
+      const d = Math.hypot(u.x - g.x, u.z - g.z);
+      if (d > DANCE_RADIUS) { if (auto) continue; far = true; }      // a dancer must be near her Grod; a player's order walks her there first
+      this.order(u, { type: 'dance', grod: g });
     }
+    if (far && units[0]?.team === TEAM.PLAYER) this.emit('toast', 'The Wind Dance belongs at the Grod: she walks there first');
   }
   rite(units, shrine) {
     for (const u of units) if (u.ut === 'zherca') {
@@ -201,7 +208,7 @@ export class Game {
     const k = targetKind(t);
     // default results; missions listen to 'ritual' and add their own
     if (o.ritual === 'wake' && k === 'idol') { this.setSiteState(t, 'awake'); this.reveal(t.x, t.z, 34, 25); this.fx.puff(t.x, t.y + 6, t.z, 30, [0.62, 0.94, 0.78], 4, 0.7, 2.5); sfx('spirit', 0.8); if (u.team === TEAM.PLAYER) this.emit('toast', 'The idol wakes. For a while, the land is shown to you.'); }
-    else if (o.ritual === 'offer' && k === 'spirit') { t.appeased = true; t.appeasedBy = u.team; this.flags.leshyAppeased = true; this.fx.puff(t.x, t.y + 3, t.z, 40, [0.62, 0.94, 0.78], 5, 0.7, 2.5); sfx('spirit', 0.9); this.emit('leshyAppeased', t, u); if (u.team === TEAM.PLAYER) this.emit('toast', 'The Leshy accepts the offering. The forest lets you pass.'); }
+    else if (o.ritual === 'offer' && k === 'spirit') { t.appeased = true; t.hostile = false; t.appeasedBy = u.team; this.flags.leshyAppeased = true; this.openWalls(); this.reveal(t.x, t.z, 30, 20); this.fx.puff(t.x, t.y + 3, t.z, 40, [0.62, 0.94, 0.78], 5, 0.7, 2.5); sfx('spirit', 0.9); this.emit('leshyAppeased', t, u); if (u.team === TEAM.PLAYER) this.emit('toast', 'The Leshy accepts the offering. The forest lets you pass.'); }
     else if (o.ritual === 'offer' && k === 'idol') { this.setSiteState(t, t.state === 'sleeping' ? 'blessed' : t.state); this.fx.puff(t.x, t.y + 4, t.z, 20, [0.9, 0.85, 0.6], 3, 0.6, 2); }
     else if (o.ritual === 'offer' && k === 'ring') { this.setSiteState(t, 'appeased'); this.fx.puff(t.x, t.y + 2, t.z, 30, [0.62, 0.94, 0.78], 5, 0.7, 2.5); sfx('spirit', 0.6); }
     else if (o.ritual === 'consecrate') {
@@ -342,13 +349,31 @@ export class Game {
   spiritSlain(from) {
     const team = from ? from.team : TEAM.PLAYER;
     this.teams[team].wind += 150; this.teams[team].rain += 75;
-    if (team === TEAM.PLAYER) this.emit('toast', 'The Leshy falls. Its hoard is yours: +150 Wind, +75 Rain');
+    this.flags.leshyKilled = true;
+    this.openWalls();
+    if (team === TEAM.PLAYER) this.emit('toast', 'The Leshy falls. Its hoard is yours: +150 Wind, +75 Rain. The forest will remember.');
+    // the forest answers: its children come out of the trees over the next minutes
+    const s = this.units.find((u) => u.ut === 'spirit');
+    const [hx, hz] = s ? s.home : LAYOUT.clearing;
+    for (let i = 0; i < 4; i++) { const a = i * 1.6 + 0.5; this.pendingSpawns.push({ ut: 'leshonok', team: TEAM.NEUTRAL, x: hx + Math.cos(a) * 16, z: hz + Math.sin(a) * 16, at: this.time + 25 + i * 30, home: [hx, hz], hunt: true }); }
+    this.emit('leshySlain', from);
+  }
+  /** The forest withdraws its roots: every root wall opens. */
+  openWalls() {
+    for (const w of this.walls) { if (w.open) continue; w.open = true; unblockCells(w.cells); if (w.prop) { w.prop.visible = false; w.prop.parent?.remove(w.prop); } this.fx.puff(w.x, heightAt(w.x, w.z) + 1, w.z, 30, [0.45, 0.65, 0.3], 5, 0.6, 2.5); }
+    for (const u of this.units) u.path = null;
   }
 
   /* ------------------------------------------------------------ per-frame */
   update(dt) {
     if (this.over) dt *= 0.25;
     this.time += dt;
+    for (let i = this.pendingSpawns.length - 1; i >= 0; i--) {
+      const p = this.pendingSpawns[i];
+      if (p.at > this.time) continue;
+      this.pendingSpawns.splice(i, 1);
+      this.spawnUnit(p.ut, p.team, p.x, p.z, Math.random() * 6.28).then((u) => { if (p.home) u.home = p.home; if (p.hunt) u.hunt = true; if (p.onSpawn) p.onSpawn(u); });
+    }
     for (const b of this.buildings) this.updateBuilding(b, dt);
     for (const u of this.units) if (!u.dead) this.updateUnit(u, dt);
     this.separate(dt);
@@ -396,7 +421,7 @@ export class Game {
               else if (t.team !== b.team) this.order(u, { type: 'attack', target: t });
               else this.order(u, { type: 'move', x: b.rally.x, z: b.rally.z });
             } else this.order(u, { type: 'move', x: b.rally.x, z: b.rally.z });
-          } else if (u.ut === 'vietra') this.dance([u]);
+          } else if (u.ut === 'vietra') this.dance([u], { auto: true });
           else if (u.ut === 'zherca') { const s = this.freeShrine(u.team, u); if (s) this.rite([u], s); }
           else this.order(u, { type: 'move', x: out[0] + (Math.random() - 0.5) * 4, z: out[1] + 3 + Math.random() * 3 });
         });
@@ -441,7 +466,14 @@ export class Game {
     if (u.stuckT > 1.2) {
       const moved = Math.hypot(u.x - u.lastPos[0], u.z - u.lastPos[1]);
       u.lastPos = [u.x, u.z]; u.stuckT = 0;
-      if (moved < 0.25) { u.stuckN = (u.stuckN || 0) + 1; u.repathT = 0; if (u.stuckN > 3) { u.stuckN = 0; u.path = null; return true; } }
+      if (moved < 0.25) {
+        u.stuckN = (u.stuckN || 0) + 1; u.repathT = 0;
+        if (u.stuckN > 3) {
+          u.stuckN = 0; u.path = null;
+          if (!u.retried) { u.retried = true; const [i, j] = nearestFree(...cellOf(u.x + (Math.random() - 0.5) * 3, u.z + (Math.random() - 0.5) * 3)); [u.x, u.z] = cellCenter(i, j); return false; }
+          u.retried = false; return true;
+        }
+      }
       else u.stuckN = 0;
     }
     return false;
@@ -483,7 +515,8 @@ export class Game {
         }
       }
     }
-    if (u.ut === 'spirit') return this.spiritBrain(u, dt);
+    if (u.def.brain === 'leshy') return this.spiritBrain(u, dt);
+    if (u.def.brain === 'leshonok') return this.leshonokBrain(u, dt);
     if (!o) {
       u.anim.mode = 'idle'; u.speedNow = 0;
       if (u.next.length) { u.order = u.next.shift(); return; }
@@ -533,8 +566,12 @@ export class Game {
         }
       } else {
         u.anim.mode = 'walk';
-        const tx = t.kind === 'building' ? clamp(u.x, t.x - t.def.size / 2 - 0.8, t.x + t.def.size / 2 + 0.8) : t.x;
-        const tz = t.kind === 'building' ? clamp(u.z, t.z - t.def.size / 2 - 0.8, t.z + t.def.size / 2 + 0.8) : t.z;
+        // a building is attacked from a spread of points round its perimeter, so a mob does not pile onto one face
+        if (t.kind === 'building' && o.slot === undefined) { t.slotSeq = (t.slotSeq || 0) + 1; o.slot = t.slotSeq; }
+        const ang = t.kind === 'building' ? Math.atan2(u.z - t.z, u.x - t.x) + ((o.slot % 5) - 2) * 0.42 : 0;
+        const hh = t.kind === 'building' ? t.def.size / 2 + 0.8 : 0;
+        const tx = t.kind === 'building' ? clamp(t.x + Math.cos(ang) * hh * 1.5, t.x - hh, t.x + hh) : t.x;
+        const tz = t.kind === 'building' ? clamp(t.z + Math.sin(ang) * hh * 1.5, t.z - hh, t.z + hh) : t.z;
         if (u.path && u.goal && Math.hypot(u.goal[0] - tx, u.goal[1] - tz) > 2.5) u.repathT = 0;
         const [gx, gz] = u.path && u.goal && Math.hypot(u.goal[0] - tx, u.goal[1] - tz) < 2.5 ? u.goal : [tx, tz];
         this.goTo(u, gx, gz, dt, 0.2);
@@ -631,7 +668,7 @@ export class Game {
   afterBuild(u, o, b) {
     this.order(u, null);
     if (u.ut === 'zherca' && b.bt === 'shrine') this.rite([u], b);
-    else if (u.ut === 'vietra' && (o.thenDance || b.bt === 'grod')) this.dance([u]);
+    else if (u.ut === 'vietra' && (o.thenDance || b.bt === 'grod')) this.dance([u], { auto: true });
   }
   dmgAgainst(u, t) {
     let d = u.def.dmg * (0.85 + Math.random() * 0.3);
@@ -643,7 +680,7 @@ export class Game {
     let best = null, bd = r * r;
     for (const e of this.units) {
       if (e.dead || e.team === u.team) continue;
-      if (e.ut === 'spirit' && Math.hypot(e.x - u.x, e.z - u.z) > 6) continue;   // creeps are left alone unless close
+      if (e.def.brain === 'leshy' && (e.appeased || (!e.hostile && Math.hypot(e.x - u.x, e.z - u.z) > 6))) continue;   // the Leshy is left alone unless it has turned on us
       const d = (e.x - u.x) ** 2 + (e.z - u.z) ** 2;
       if (d < bd && this.visibleTo(u.team, e)) { bd = d; best = e; }
     }
@@ -682,15 +719,56 @@ export class Game {
       } else { u.anim.mode = 'walk'; this.goTo(u, t.x, t.z, dt, 0.3); }
       return;
     }
-    // idle: heal, sway, look for intruders
+    // idle: heal, sway, watch the clearing
     u.anim.mode = 'idle'; u.speedNow = 0;
     u.hp = Math.min(u.maxHp, u.hp + 25 * dt);
+    u.patience = Math.min(8, (u.patience ?? 8) + dt * 0.5);
+    if (u.lastHitBy && !u.lastHitBy.dead && Math.hypot(u.lastHitBy.x - hx, u.lastHitBy.z - hz) < 26) { u.hostile = true; this.order(u, { type: 'attack', target: u.lastHitBy }); u.lastHitBy = null; sfx('spirit', this.visibleTo(0, u) ? 0.8 : 0); return; }
+    if (u.appeased) {
+      // appeased: it walks its clearing and lets everyone be
+      if (u.scanT <= 0) { u.scanT = 6 + Math.random() * 6; const a = Math.random() * 6.28, r = 3 + Math.random() * 6; this.order(u, { type: 'move', x: hx + Math.cos(a) * r, z: hz + Math.sin(a) * r, leash: true }); }
+      return;
+    }
     if (u.scanT <= 0) {
       u.scanT = 0.5;
+      // intruders in the clearing: a warning first, then patience runs out
       let best = null, bd = 12 * 12;
-      for (const e of this.units) { if (e.dead || e === u) continue; const d = (e.x - hx) ** 2 + (e.z - hz) ** 2; if (d < bd) { bd = d; best = e; } }
-      if (best) { this.order(u, { type: 'attack', target: best }); sfx('spirit', this.visibleTo(0, u) ? 0.8 : 0); }
-      if (u.lastHitBy && !u.lastHitBy.dead && Math.hypot(u.lastHitBy.x - hx, u.lastHitBy.z - hz) < 24) { this.order(u, { type: 'attack', target: u.lastHitBy }); u.lastHitBy = null; }
+      for (const e of this.units) { if (e.dead || e === u || e.team === TEAM.NEUTRAL) continue; const d = (e.x - hx) ** 2 + (e.z - hz) ** 2; if (d < bd) { bd = d; best = e; } }
+      if (best) {
+        if (!u.warned || this.time - u.warned > 40) { u.warned = this.time; if (best.team === TEAM.PLAYER) this.emit('leshyWarn', u, best); sfx('spirit', this.visibleTo(0, u) ? 0.7 : 0); }
+        u.patience -= 0.5 + dt;
+        if (u.patience <= 0 || u.hostile) { u.hostile = true; this.order(u, { type: 'attack', target: best }); sfx('spirit', this.visibleTo(0, u) ? 0.8 : 0); }
+      }
+    }
+  }
+  /* ------------------------------------------------------------ the Leshy's children */
+  leshonokBrain(u, dt) {
+    const [hx, hz] = u.home, o = u.order;
+    if (o?.type === 'attack' && (!o.target || o.target.dead)) { this.order(u, null); return; }
+    if (o?.type === 'attack') {
+      const t = o.target, d = this.distTo(u, t);
+      if (Math.hypot(u.x - hx, u.z - hz) > 34) { this.order(u, { type: 'move', x: hx, z: hz }); return; }
+      if (d <= u.def.range) {
+        u.speedNow = 0; u.path = null; u.face = turn(u.face, Math.atan2(t.x - u.x, t.z - u.z), dt * 8);
+        if (u.cooldown <= 0) { u.cooldown = u.def.cd; u.anim.mode = 'attack'; u.anim.attackT = 0; u.anim.attackDur = 0.5; u.pendingHit = { target: t, t: 0.25 }; }
+        else if (u.anim.attackT >= u.anim.attackDur) u.anim.mode = 'idle';
+      } else { u.anim.mode = 'walk'; this.goTo(u, t.x, t.z, dt, 0.3); }
+      return;
+    }
+    if (o?.type === 'move') { u.anim.mode = 'walk'; if (this.goTo(u, o.x, o.z, dt, 0.8)) this.order(u, null); if (u.scanT <= 0) { u.scanT = 0.4; const t = this.nearestEnemy(u, 12); if (t) this.order(u, { type: 'attack', target: t }); } return; }
+    u.anim.mode = 'idle'; u.speedNow = 0;
+    if (u.scanT <= 0) {
+      u.scanT = 0.5;
+      const t = this.nearestEnemy(u, u.sight);
+      if (t) { this.order(u, { type: 'attack', target: t }); return; }
+      // hunting: drift toward the nearest human building, or wander the home wood
+      u.wanderT = (u.wanderT || 0) - 0.5;
+      if (u.wanderT <= 0) {
+        u.wanderT = 6 + Math.random() * 6;
+        const target = u.hunt ? this.buildings.filter((b) => !b.dead && b.team === TEAM.PLAYER).sort((a, b) => Math.hypot(a.x - u.x, a.z - u.z) - Math.hypot(b.x - u.x, b.z - u.z))[0] : null;
+        if (target && Math.hypot(target.x - hx, target.z - hz) < 60) { u.home = [target.x + (Math.random() - 0.5) * 20, target.z + (Math.random() - 0.5) * 20]; this.order(u, { type: 'move', x: u.home[0], z: u.home[1] }); }
+        else { const a = Math.random() * 6.28, r = 4 + Math.random() * 10; this.order(u, { type: 'move', x: hx + Math.cos(a) * r, z: hz + Math.sin(a) * r }); }
+      }
     }
   }
 

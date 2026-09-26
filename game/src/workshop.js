@@ -12,6 +12,7 @@ const ASSETS = {
   deer: { unit: 'deer', label: 'Jelenik (Deer Rider)' },
   bear: { unit: 'bear', label: 'Medved (Bear)' },
   spirit: { unit: 'spirit', label: 'Leshy' },
+  leshonok: { unit: 'leshonok', label: 'Leshonok' },
   grod: { building: 'grod', label: 'Grod' },
   khata: { building: 'khata', label: 'Khata' },
   warhall: { building: 'warhall', label: 'Zbroynia' },
@@ -24,6 +25,8 @@ const ASSETS = {
   rock_cluster: { prop: 'rock_cluster', label: 'Rock Cluster', size: 2 },
   reeds: { prop: 'reeds', label: 'Reeds', size: 1.5 },
   grass_tuft: { prop: 'grass_tuft', label: 'Grass Tuft', size: 0.6 },
+  founding_stake: { prop: 'founding_stake', label: 'Founding Stake', size: 1.8 },
+  root_wall: { prop: 'root_wall', label: 'Root Wall', size: 2.5 },
 };
 
 const $ = (selector) => document.querySelector(selector);

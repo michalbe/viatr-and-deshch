@@ -146,6 +146,17 @@ export const cellCenter = (i, j) => [-MAP.half + (i + 0.5) * MAP.cell, -MAP.half
 export const staticBlock = new Uint8Array(G * G);    // water, trees, rocks, edge
 export const dynBlock = new Uint8Array(G * G);       // buildings (counted)
 export const blocked = (i, j) => i < 0 || j < 0 || i >= G || j >= G || staticBlock[j * G + i] || dynBlock[j * G + i];
+/** Block the cells within r of (x, z) dynamically; returns the cell list so it can be released. */
+export function blockCircle(x, z, r) {
+  const cells = [], [ci, cj] = cellOf(x, z), k = Math.ceil(r / MAP.cell);
+  for (let j = cj - k; j <= cj + k; j++) for (let i = ci - k; i <= ci + k; i++) {
+    if (i < 0 || j < 0 || i >= G || j >= G) continue;
+    const [cx, cz] = cellCenter(i, j);
+    if ((cx - x) ** 2 + (cz - z) ** 2 <= r * r + 0.6) { dynBlock[j * G + i]++; cells.push(j * G + i); }
+  }
+  return cells;
+}
+export function unblockCells(cells) { for (const k of cells) dynBlock[k] = Math.max(0, dynBlock[k] - 1); }
 
 export function buildStaticGrid(veg) {
   for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {

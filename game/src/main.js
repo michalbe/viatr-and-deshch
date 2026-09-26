@@ -6,7 +6,7 @@ import { createRig } from '../rig.js';
 import { setSurfaceDefaults } from '../surfaces.js';
 import { preloadAssets } from '../assetlib.js';
 import { UNITS, BUILDINGS, TEAM, LAYOUT, MAP } from './config.js';
-import { buildTerrain, vegetation, buildStaticGrid, heightAt, applyFog, fogFactorAt, wearGround } from './terrain.js';
+import { buildTerrain, vegetation, buildStaticGrid, heightAt, applyFog, fogFactorAt, wearGround, blockCircle, bandT } from './terrain.js';
 import { makeUnitModel, makeBuildingModel, makeProp, instanced, portrait } from './models.js';
 import { Game } from './game.js';
 import { RivalAI, setupMatch } from './ai.js';
@@ -40,7 +40,7 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 0));
 
   step(0.15, 'reading the asset modules');
-  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft', 'founding_stake'];
+  const names = ['vietra', 'zherca', 'streletz', 'vitez', 'deer_rider', 'bear', 'forest_spirit', 'grod', 'khata', 'war_hall', 'rain_shrine', 'sacred_grove', 'pine_tree', 'birch_tree', 'rock_cluster', 'sacred_spring', 'reeds', 'stone_idol', 'grass_tuft', 'founding_stake', 'root_wall', 'leshonok'];
   await preloadAssets(names.map((n) => `./assets/${n}.js`));
 
   step(0.3, 'planting the forest');
@@ -65,6 +65,15 @@ async function boot() {
   idol.position.set(LAYOUT.idol[0], heightAt(...LAYOUT.idol) - 0.2, LAYOUT.idol[1]); idol.rotation.y = 0.5;
   scene.add(idol); props.push({ obj: idol, x: LAYOUT.idol[0], z: LAYOUT.idol[1], idol: true });
   game.addSite({ st: 'idol', name: 'Old Idol', title: 'Four faces on the hill', x: LAYOUT.idol[0], z: LAYOUT.idol[1], radius: 3.6, state: 'sleeping', prop: idol });
+  // the forest closes the path through the Leshy's clearing with roots at both ends; the Leshy withdraws them when appeased
+  const ct = bandT(LAYOUT.clearing[0], LAYOUT.clearing[1]);
+  for (const d of [-12, 12]) {
+    const x = (ct + d) / Math.SQRT2, z = (ct - d) / Math.SQRT2;
+    const wall = await makeProp('root_wall', S);
+    wall.position.set(x, heightAt(x, z) - 0.1, z); wall.rotation.y = -Math.PI / 4;
+    scene.add(wall); props.push({ obj: wall, x, z });
+    game.walls.push({ x, z, prop: wall, cells: blockCircle(x, z, 3.6), open: false });
+  }
 
   step(0.55, 'carving the clans');
   const jobs = [];

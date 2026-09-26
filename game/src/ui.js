@@ -41,6 +41,8 @@ export class UI {
     game.on('alarm', (t) => { this.toast('Your settlement is under attack!', 'bad'); sfx('alarm'); this.pings.push({ x: t.x, z: t.z, t: 3 }); });
     game.on('toast', (m) => this.toast(m));
     game.on('raid', () => {});
+    game.on('leshyWarn', (leshy, who) => { this.toast('The trees creak. The Leshy is watching: leave its clearing, or bring an offering.', 'bad'); this.pings.push({ x: leshy.x, z: leshy.z, t: 3 }); });
+    game.on('leshySlain', () => this.toast('The forest stirs with anger. Its children are coming.', 'bad'));
     game.on('grodDown', (b) => { if (b.team === TEAM.PLAYER) this.toast('Your Grod has fallen! Raise it again with a Vietra (300 Wind).', 'bad'); });
     game.on('end', (r) => this.showEnd(r));
     game.on('built', (b) => this.toast(`${b.def.name} complete`, 'good'));
