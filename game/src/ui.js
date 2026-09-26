@@ -4,7 +4,7 @@
  * plus a camera stick on a phone.
  */
 import * as THREE from 'three';
-import { UNITS, BUILDINGS, TEAM, MAP, OBJECTIVES, LAYOUT, clamp, damp } from './config.js';
+import { UNITS, BUILDINGS, TEAM, MAP, OBJECTIVES, LAYOUT, clamp, damp, lerp } from './config.js';
 import { heightAt, G, baseColors } from './terrain.js';
 import { makeBuildingModel } from './models.js';
 import { sfx, setMuted, isMuted } from './audio.js';
@@ -65,6 +65,9 @@ export class UI {
     this.target.x = clamp(this.target.x, -MAP.half + 6, MAP.half - 6);
     this.target.y = clamp(this.target.y, -MAP.half + 4, MAP.half + 6);
     this.dist = damp(this.dist, this.distGoal, 10, dt);
+    // Warcraft III zoom: the far camera looks down on the map, the close camera drops toward the horizon
+    const k = clamp((this.dist - 24) / (82 - 24), 0, 1), e = k * k * (3 - 2 * k);
+    this.pitch = lerp(0.6, 1.08, e);
     const ty = heightAt(this.target.x, this.target.y);
     this.cam.position.set(this.target.x, ty + this.dist * Math.sin(this.pitch), this.target.y + this.dist * Math.cos(this.pitch));
     this.cam.lookAt(this.target.x, ty, this.target.y);
