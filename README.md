@@ -18,7 +18,7 @@ them, with clan colour, painted atlas, poses, clay and wireframe modes.
 | | Laptop | Phone |
 |---|---|---|
 | select | click, drag a box, double-click for all of a type | tap, double-tap, BOX / ARMY / IDLE buttons |
-| command | right-click ground, enemy, Grod (dance) or shrine (rite) | tap ground or enemy; long-press anything |
+| command | right-click (or Cmd/Ctrl+click, or two-finger click on a trackpad) ground, enemy, Grod (dance) or shrine (rite) | tap ground or enemy; long-press anything |
 | camera | WASD, arrows, screen edges, wheel, minimap | camera stick, one-finger drag, pinch, minimap |
 | groups | Ctrl+1..9, then 1..9 | |
 

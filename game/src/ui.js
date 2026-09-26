@@ -255,7 +255,7 @@ export class UI {
   refreshPanel(force = false) {
     const g = this.g, sel = g.selection.filter((e) => !e.dead);
     const panel = $('panel');
-    if (!sel.length) { $('queuebar').classList.remove('on'); panel.classList.add('empty'); $('cmds').innerHTML = ''; $('info').innerHTML = '<div class="hint">' + (TOUCH ? 'Tap a unit to select it. Drag to look around.' : 'Select units with a click or a box. Right-click to command.') + '</div>'; $('portrait').style.backgroundImage = ''; this.cmdKeys = {}; this.lastCmdSig = ''; this.syncPanelH(); return; }
+    if (!sel.length) { $('queuebar').classList.remove('on'); panel.classList.add('empty'); $('cmds').innerHTML = ''; $('info').innerHTML = '<div class="hint">' + (TOUCH ? 'Tap a unit to select it. Drag to look around.' : 'Select units with a click or a box. Right-click (or Cmd+click) to command.') + '</div>'; $('portrait').style.backgroundImage = ''; this.cmdKeys = {}; this.lastCmdSig = ''; this.syncPanelH(); return; }
     panel.classList.remove('empty');
     const e = sel[0];
     const key = e.kind === 'unit' ? e.ut : e.bt;
@@ -427,7 +427,7 @@ export class UI {
     mm.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation();
       const [x, z] = this.minimapToWorld(e);
-      if (e.button === 2) { const u = this.ownUnits(); if (u.length) { this.g.moveGroup(u, x, z, 'move'); sfx('click'); } }
+      if (this.isCommandClick(e)) { const u = this.ownUnits(); if (u.length) { this.g.moveGroup(u, x, z, 'move'); sfx('click'); } }
       else { this.centerOn(x, z + 6); this.mmDrag = true; }
     });
     mm.addEventListener('pointermove', (e) => { if (this.mmDrag) { const [x, z] = this.minimapToWorld(e); this.centerOn(x, z + 6); } });
@@ -490,9 +490,12 @@ export class UI {
     const act = this.cmdKeys[e.code];
     if (act && !e.ctrlKey && !e.metaKey) { act(); this.keys.delete(e.code); }
   }
+  /** Right button, or Cmd/Ctrl + left button: a trackpad with no secondary click still gets a command click. */
+  isCommandClick(e) { return e.button === 2 || (e.button === 0 && (e.metaKey || e.ctrlKey)); }
   mdown(e) {
-    this.mouse.down = true; this.mouse.button = e.button; this.mouse.bx = e.clientX; this.mouse.by = e.clientY; this.mouse.box = false;
-    if (e.button === 2) {
+    const right = this.isCommandClick(e);
+    this.mouse.down = true; this.mouse.button = right ? 2 : e.button; this.mouse.bx = e.clientX; this.mouse.by = e.clientY; this.mouse.box = false;
+    if (right) {
       if (this.mode) { this.cancelMode(); return; }
       this.command(e.clientX, e.clientY);
     } else if (e.button === 1) { this.mouse.panning = true; }
