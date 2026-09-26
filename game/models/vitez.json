@@ -1,0 +1,187 @@
+{
+ "name": "vitez",
+ "atlas": 512,
+ "seed": 41,
+ "height": 2.4206844866275787,
+ "top": 2.440000057220459,
+ "bottom": 0.01931557059288025,
+ "layout": {
+  "head": [
+   0,
+   0,
+   256,
+   128
+  ],
+  "torso": [
+   256,
+   0,
+   256,
+   128
+  ],
+  "helm": [
+   0,
+   128,
+   128,
+   64
+  ],
+  "mantle": [
+   128,
+   128,
+   128,
+   64
+  ],
+  "shield": [
+   256,
+   128,
+   128,
+   128
+  ],
+  "blade": [
+   384,
+   128,
+   128,
+   128
+  ],
+  "pauldron": [
+   0,
+   192,
+   64,
+   64
+  ],
+  "sleeve": [
+   64,
+   192,
+   64,
+   64
+  ],
+  "bracer": [
+   128,
+   192,
+   64,
+   64
+  ],
+  "hand": [
+   192,
+   192,
+   64,
+   64
+  ],
+  "kilt": [
+   0,
+   256,
+   128,
+   128
+  ],
+  "skirt": [
+   128,
+   256,
+   128,
+   64
+  ],
+  "belt": [
+   128,
+   320,
+   128,
+   32
+  ],
+  "trousers": [
+   256,
+   256,
+   64,
+   64
+  ],
+  "boot": [
+   320,
+   256,
+   64,
+   128
+  ],
+  "beard": [
+   384,
+   256,
+   64,
+   64
+  ],
+  "wood": [
+   448,
+   256,
+   32,
+   128
+  ],
+  "iron": [
+   0,
+   384,
+   64,
+   64
+  ],
+  "strap": [
+   64,
+   384,
+   64,
+   32
+  ],
+  "foot": [
+   128,
+   384,
+   64,
+   64
+  ],
+  "bronze": [
+   192,
+   384,
+   32,
+   32
+  ]
+ },
+ "team": [
+  "kilt"
+ ],
+ "clips": {
+  "idle": {
+   "duration": 4.0,
+   "loop": true
+  },
+  "fidget1": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget2": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget3": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "walk": {
+   "duration": 1.4166666666666667,
+   "loop": true
+  },
+  "attack": {
+   "duration": 1.0,
+   "loop": false
+  },
+  "death": {
+   "duration": 1.2083333333333333,
+   "loop": false
+  }
+ },
+ "kind": "humanoid",
+ "gait": "vitez",
+ "tris": 2052,
+ "bones": [
+  "hips",
+  "spine",
+  "head",
+  "lShoulder",
+  "lElbow",
+  "lHip",
+  "lKnee",
+  "rShoulder",
+  "rElbow",
+  "rHip",
+  "rKnee"
+ ],
+ "display_height": 3.38,
+ "speed": 2.9
+}
