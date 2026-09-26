@@ -1,193 +1,137 @@
+// Deer Rider, scout and raider. Painted-atlas build: an oversized stag with a thick neck, a great
+// rack of antlers and heavy hooves, under a team saddle cloth; a lean rider in a fur cap and a
+// team cloak with a short spear. Deer joints: body, neck, head, flLeg/frLeg/blLeg/brLeg (+ knees);
+// rider joints prefixed r_ under the deer's body.
+import { createPainter, GREY } from '../paint.js';
+import { createKit } from '../charkit.js';
+
 export default function (THREE) {
+  const P = createPainter(THREE, 512, 71);
+  const R = P.region;
+  const HIDE = 0x9a6a3e, BONE = 0xe0cfa8, LINEN = 0xe6dcc3, SKIN = 0xd9a07a, HAIR = 0x3b2618, LEATHER = 0x6b4526, FUR = 0x5a3b22, WOOD = 0xa27a4f, IRON = 0x6e757c;
+
+  /* ------------------------------------------------------------------ the atlas */
+  R('hide', 0, 0, 256, 128, (c, w, h) => {
+    // u wraps from the belly (edges) over the back (centre): pale belly, dark dorsal stripe, dappled flanks
+    P.fur(w, h, { base: HIDE, tip: 0.4, n: 1400 });
+    P.grad(w, h, [[0, P.tone(BONE, 0.1, 0.9)], [0.18, 'rgba(0,0,0,0)'], [0.5, P.tone(HIDE, -0.5, 0.55)], [0.82, 'rgba(0,0,0,0)'], [1, P.tone(BONE, 0.1, 0.9)]], 'h');
+    for (let i = 0; i < 40; i++) { const x = P.rnd() * w, y = P.rnd() * h; if (Math.abs(x - w / 2) < w * 0.3 && Math.abs(x - w / 2) > w * 0.08) { c.fillStyle = P.tone(BONE, 0, 0.35); c.beginPath(); c.ellipse(x, y, 3, 2, 0, 0, Math.PI * 2); c.fill(); } }
+  });
+  R('deerhead', 256, 0, 128, 128, (c, w, h) => {
+    // v: back of the skull at the top, nose at the bottom; u: chin at the edges, brow at the centre
+    P.fur(w, h, { base: HIDE, tip: 0.4, n: 500 });
+    P.grad(w, h, [[0, P.tone(BONE, 0.1, 0.8)], [0.2, 'rgba(0,0,0,0)'], [0.8, 'rgba(0,0,0,0)'], [1, P.tone(BONE, 0.1, 0.8)]], 'h');
+    for (const sg of [-1, 1]) { const ex = w * 0.5 + sg * w * 0.16, ey = h * 0.4; c.fillStyle = 'rgba(20,10,5,0.9)'; c.beginPath(); c.ellipse(ex, ey, w * 0.05, h * 0.06, sg * 0.4, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.arc(ex - sg * 2, ey - 3, 2, 0, Math.PI * 2); c.fill(); c.strokeStyle = P.tone(HIDE, -0.55); c.lineWidth = 2; c.beginPath(); c.ellipse(ex, ey - 1, w * 0.06, h * 0.07, sg * 0.4, Math.PI, Math.PI * 2); c.stroke(); }
+    c.fillStyle = P.tone(0x2a1a10); c.beginPath(); c.ellipse(w * 0.5, h * 0.93, w * 0.12, h * 0.07, 0, 0, Math.PI * 2); c.fill();
+    P.glow(w * 0.46, h * 0.9, w * 0.05, '255,255,255', 0.4);
+    P.vignette(w, h, { bottom: 0.2 });
+  });
+  R('antler', 384, 0, 64, 128, (c, w, h) => { P.fill(w, h, P.tone(BONE, -0.1)); P.grad(w, h, [[0, P.tone(BONE, 0.3)], [0.5, P.tone(BONE, -0.05)], [1, P.tone(BONE, -0.45)]], 'h'); P.strokes(w, h, { n: 70, len: 26, width: 1.5, angle: Math.PI / 2, jitter: 0.1, cols: [P.tone(BONE, -0.5, 0.5), P.tone(BONE, 0.4, 0.5)] }); P.vignette(w, h, { bottom: 0.5 }); });
+  R('leg', 448, 0, 64, 128, (c, w, h) => { P.fur(w, h, { base: HIDE, tip: 0.35, n: 500 }); P.grad(w, h, [[0, 'rgba(0,0,0,0)'], [0.75, 'rgba(0,0,0,0.25)'], [0.86, P.tone(0x2a1a10, 0.05)], [1, P.tone(0x2a1a10, -0.2)]]); P.glow(w * 0.4, h * 0.9, w * 0.2, '255,240,220', 0.3); });
+  R('saddlecloth', 0, 128, 128, 64, (c, w, h) => { P.cloth(w, h, { base: GREY, folds: 3, depth: 0.4 }); P.band(w, h - 12, 12, P.tone(GREY, -0.4)); c.strokeStyle = P.tone(GREY, 0.5); c.lineWidth = 2; c.beginPath(); for (let x = 0; x <= w; x += 8) c.lineTo(x, h - 6 + (x / 8 % 2 ? 3 : -3)); c.stroke(); c.fillStyle = P.tone(GREY, 0.45); c.beginPath(); c.moveTo(w * 0.5, h * 0.2); c.lineTo(w * 0.6, h * 0.5); c.lineTo(w * 0.5, h * 0.7); c.lineTo(w * 0.4, h * 0.5); c.closePath(); c.fill(); });
+  R('saddle', 128, 128, 64, 64, (c, w, h) => P.leather(w, h, { base: LEATHER, straps: 1 }));
+  R('rhead', 192, 128, 128, 64, (c, w, h) => P.face(w, h, { base: SKIN, hairCol: HAIR, eyeY: 0.46, mouthY: 0.72, eyeGap: 0.085, eyeW: 0.05, stern: 0.7, beard: 1, hairTop: 1 }));
+  R('tunic', 320, 128, 64, 64, (c, w, h) => { P.cloth(w, h, { base: LINEN, folds: 4, depth: 0.5 }); P.band(w, h - 8, 8, P.tone(LEATHER, -0.2)); });
+  R('rcloak', 384, 128, 64, 64, (c, w, h) => { P.cloth(w, h, { base: GREY, folds: 4, depth: 0.6 }); P.band(w, h - 8, 8, P.tone(GREY, -0.4)); });
+  R('fur', 448, 128, 64, 64, (c, w, h) => P.fur(w, h, { base: FUR, tip: 0.5 }));
+  R('rleather', 0, 192, 64, 64, (c, w, h) => P.leather(w, h, { base: LEATHER, straps: 2 }));
+  R('rhand', 64, 192, 32, 32, (c, w, h) => { P.skin(w, h, { base: SKIN }); P.seam(w * 0.4, h * 0.4, w * 0.4, h, 2, { dark: 'rgba(80,30,20,0.7)' }); P.seam(w * 0.6, h * 0.4, w * 0.6, h, 2, { dark: 'rgba(80,30,20,0.7)' }); });
+  R('spear', 96, 192, 32, 128, (c, w, h) => P.wood(w, h, { base: WOOD }));
+  R('iron', 128, 192, 32, 32, (c, w, h) => P.iron(w, h, { base: IRON, bevel: 2, spec: 0.6, band: 0.35 }));
+  R('tail', 160, 192, 32, 64, (c, w, h) => { P.fur(w, h, { base: HIDE, tip: 0.4, n: 160 }); P.grad(w, h, [[0, 'rgba(0,0,0,0)'], [1, P.tone(BONE, 0.2, 0.8)]]); });
+  R('bone', 192, 192, 32, 32, (c, w, h) => P.fill(w, h, P.tone(BONE, -0.05)));
+
+  /* ------------------------------------------------------------------ the deer */
+  const K = createKit(THREE, P);
+  const { joint, rings, sweep, blob, limb, plate, sheet, add } = K;
   const g = new THREE.Group();
   const joints = {};
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const mat = (hex, name, o) => {
-    const m = new THREE.MeshStandardMaterial(Object.assign({ color: hex, roughness: 0.85, metalness: 0 }, o || {}));
-    if (name) m.name = name;
-    return m;
-  };
-  const J = (parent, name, x, y, z) => {
-    const o = new THREE.Object3D(); o.name = name; o.position.set(x, y, z);
-    parent.add(o); joints[name] = o; return o;
-  };
-  const add = (parent, geo, m, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => {
-    const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.rotation.set(rx, ry, rz); me.scale.set(sx, sy, sz);
-    parent.add(me); return me;
-  };
-  const UP = V(0, 1, 0);
-  // tapered cylinder from point a (radius r1) to point b (radius r2)
-  const seg = (parent, a, b, r1, r2, m, s = 8, open = true) => {
-    const A = V(a[0], a[1], a[2]), B = V(b[0], b[1], b[2]);
-    const d = B.clone().sub(A); const L = d.length();
-    const me = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, s, 1, open), m);
-    me.position.copy(A).addScaledVector(d, 0.5);
-    me.quaternion.setFromUnitVectors(UP, d.normalize());
-    parent.add(me); return me;
-  };
-  // cone from a (base radius r) to tip b
-  const cone = (parent, a, b, r, m, s = 7) => seg(parent, a, b, r, 0.001, m, s, true);
-  const ball = (parent, r, m, x, y, z, sx = 1, sy = 1, sz = 1, ws = 7, hs = 5) =>
-    add(parent, new THREE.SphereGeometry(r, ws, hs), m, x, y, z, 0, 0, 0, sx, sy, sz);
-  // lathe from [[r,h],...] around Y; optionally laid along +Z
-  const lathe = (pts, s = 8, alongZ = false) => {
-    const geo = new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), s);
-    if (alongZ) geo.rotateX(Math.PI / 2);
-    return geo;
-  };
-  // lathe a profile [[r, t], ...] (t in 0..1) along the segment a->b
-  const lseg = (parent, a, b, prof, m, s = 7) => {
-    const A = V(a[0], a[1], a[2]), B = V(b[0], b[1], b[2]);
-    const d = B.clone().sub(A); const L = d.length();
-    const me = new THREE.Mesh(lathe(prof.map((p) => [p[0], p[1] * L]), s), m);
-    me.position.copy(A); me.quaternion.setFromUnitVectors(UP, d.normalize());
-    parent.add(me); return me;
-  };
-  const extr = (drawFn, depth) => {
-    const sh = new THREE.Shape(); drawFn(sh);
-    const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 3 });
-    geo.translate(0, 0, -depth / 2); return geo;
-  };
-  const cap = (parent, a, b, r, m, s = 7) => {
-    const A = V(a[0], a[1], a[2]), B = V(b[0], b[1], b[2]); const d = B.clone().sub(A); const L = d.length();
-    const me = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.01, L), 2, s), m);
-    me.position.copy(A).addScaledVector(d, 0.5); me.quaternion.setFromUnitVectors(UP, d.normalize()); parent.add(me); return me;
-  };
-  // Deer Rider A: primitives (scaled spheres + tapered cylinders), recursive cylinder antlers.
-  const hide = mat(0x9a6a3e, 'fabric');
-  const bone = mat(0xe0cfa8);
-  const linen = mat(0xe6dcc3, 'fabric');
-  const team = mat(0xc0282d, 'fabric', { side: THREE.DoubleSide });
-  const skin = mat(0xd9a07a);
-  const leather = mat(0x6b4526, 'fabric');
-  const fur = mat(0x5a3b22, 'fabric');
+  const J = (parent, name, x, y, z) => { const o = joint(parent, x, y, z); o.name = name; joints[name] = o; return o; };
 
-  // ---------- deer ----------
   const body = J(g, 'body', 0, 1.75, 0);
-  ball(body, 1, hide, 0, 0, 0.05, 0.42, 0.4, 0.95, 8, 5);          // barrel
-  ball(body, 1, hide, 0, 0.08, 0.55, 0.44, 0.37, 0.5, 8, 5);        // chest / withers
-  ball(body, 1, hide, 0, 0.03, -0.72, 0.42, 0.4, 0.45, 8, 5);       // rump
-  ball(body, 1, bone, 0, -0.17, 0.05, 0.33, 0.25, 0.8, 7, 5);       // pale belly
-  ball(body, 1, bone, 0, -0.02, -1.08, 0.2, 0.2, 0.1, 8, 6);         // rump patch
-  cone(body, [0, 0.2, -1.05], [0, 0.02, -1.32], 0.09, hide, 6);      // tail
-  cone(body, [0, 0.14, -1.08], [0, -0.02, -1.3], 0.07, bone, 6);
+  // barrel from the rump to the chest, a deep chest and high withers
+  add(body, sweep([
+    { p: [0, 0.02, -1.15], rx: 0.2, ry: 0.22 }, { p: [0, 0.05, -0.95], rx: 0.4, ry: 0.42 }, { p: [0, 0.02, -0.5], rx: 0.44, ry: 0.46 },
+    { p: [0, 0.0, 0.0], rx: 0.42, ry: 0.44 }, { p: [0, 0.06, 0.5], rx: 0.44, ry: 0.5 }, { p: [0, 0.1, 0.85], rx: 0.38, ry: 0.44 }, { p: [0, 0.14, 1.0], rx: 0.26, ry: 0.3 },
+  ], 10, { capStart: true, capEnd: true }), 'hide');
+  add(body, sweep([{ p: [0, 0.2, -1.05], rx: 0.08, ry: 0.08 }, { p: [0, 0.1, -1.25], rx: 0.07, ry: 0.06 }, { p: [0, -0.06, -1.36], rx: 0.03, ry: 0.03 }], 6, { capEnd: true }), 'tail');
 
-  // neck and head
+  // neck: thick, rising forward; head with muzzle, ears, antlers
   const neck = J(body, 'neck', 0, 0.2, 0.85);
-  seg(neck, [0, -0.05, -0.05], [0, 0.72, 0.42], 0.27, 0.17, hide, 9);
-  ball(neck, 1, bone, 0, 0.2, 0.18, 0.17, 0.3, 0.14, 8, 6);          // pale throat
-  ball(neck, 1, hide, 0, 0.35, 0.08, 0.2, 0.34, 0.2, 8, 6);          // neck ruff
+  add(neck, sweep([{ p: [0, -0.1, -0.05], rx: 0.3, ry: 0.34 }, { p: [0, 0.25, 0.15], rx: 0.26, ry: 0.3 }, { p: [0, 0.55, 0.32], rx: 0.2, ry: 0.24 }, { p: [0, 0.78, 0.45], rx: 0.17, ry: 0.18 }], 9), 'hide');
   const head = J(neck, 'head', 0, 0.75, 0.44);
-  ball(head, 1, hide, 0, 0.02, 0.04, 0.17, 0.17, 0.2, 8, 6);         // skull
-  seg(head, [0, 0.0, 0.12], [0, -0.1, 0.48], 0.13, 0.08, hide, 8, false);   // muzzle
-  ball(head, 1, bone, 0, -0.1, 0.36, 0.08, 0.05, 0.12, 7, 5);        // pale chin
-  ball(head, 0.06, fur, 0, -0.08, 0.5, 1, 0.9, 0.8, 6, 3);           // nose
+  add(head, sweep([{ p: [0, 0.06, -0.14], rx: 0.16, ry: 0.16 }, { p: [0, 0.08, 0.02], rx: 0.19, ry: 0.2 }, { p: [0, 0.02, 0.2], rx: 0.14, ry: 0.15 }, { p: [0, -0.06, 0.4], rx: 0.1, ry: 0.1 }, { p: [0, -0.1, 0.52], rx: 0.08, ry: 0.07 }], 9, { capStart: true, capEnd: true }), 'deerhead');
+  for (const s of [1, -1]) add(head, plate([[-0.06, 0], [0.06, 0], [0.03, 0.3], [-0.03, 0.3]], 0.02), 'hide', { mat: K.paint2, pos: [s * 0.16, 0.14, -0.06], rot: [0.3, 0, -s * 1.1] });
+  // antlers: a main beam swept through five points with tines off it
   for (const s of [1, -1]) {
-    ball(head, 0.035, fur, s * 0.13, 0.06, 0.16, 1, 1, 1, 6, 3);      // eyes
-    const ear = add(head, new THREE.ConeGeometry(0.07, 0.28, 6), hide, s * 0.2, 0.14, -0.04, 0, 0, -s * 1.1);
-    ear.scale.set(1, 1, 0.45);
-  }
-  // antlers: explicit main beam with tines
-  for (const s of [1, -1]) {
-    const P = [[s * 0.09, 0.15, -0.02], [s * 0.3, 0.36, -0.14], [s * 0.52, 0.56, -0.12], [s * 0.66, 0.76, 0.0], [s * 0.7, 0.92, 0.14]];
-    const R = [0.055, 0.048, 0.04, 0.032, 0.024];
-    for (let i = 0; i < 4; i++) seg(head, P[i], P[i + 1], R[i], R[i + 1], bone, 6, true);
-    cone(head, P[4], [s * 0.7, 1.02, 0.24], R[4], bone, 6);
-    ball(head, 0.065, bone, P[0][0], P[0][1], P[0][2], 1, 1, 1, 6, 3);            // burr
-    const tines = [[0, [s * 0.2, 0.3, 0.3]], [1, [s * 0.34, 0.64, 0.12]], [2, [s * 0.5, 0.86, -0.06]], [3, [s * 0.86, 0.92, -0.08]], [3, [s * 0.58, 1.0, 0.08]]];
-    for (const [i, t] of tines) cone(head, P[i], t, R[i] * 0.8, bone, 6);
+    const beam = [[s * 0.09, 0.15, -0.02], [s * 0.3, 0.38, -0.14], [s * 0.52, 0.6, -0.12], [s * 0.68, 0.8, 0.0], [s * 0.72, 0.98, 0.16], [s * 0.72, 1.1, 0.26]];
+    const rad = [0.06, 0.052, 0.044, 0.036, 0.026, 0.01];
+    add(head, sweep(beam.map((p, i) => ({ p, rx: rad[i] })), 6, { capStart: true, capEnd: true }), 'antler');
+    add(head, blob(0.075, 0.06, 0.075, 6, 3), 'antler', { pos: beam[0] });
+    const tines = [[0, [s * 0.22, 0.32, 0.32]], [1, [s * 0.36, 0.7, 0.14]], [2, [s * 0.5, 0.92, -0.06]], [3, [s * 0.9, 0.98, -0.1]], [3, [s * 0.58, 1.06, 0.08]]];
+    for (const [i, t] of tines) add(head, sweep([{ p: beam[i], rx: rad[i] * 0.8 }, { p: [(beam[i][0] + t[0]) / 2, (beam[i][1] + t[1]) / 2, (beam[i][2] + t[2]) / 2], rx: rad[i] * 0.5 }, { p: t, rx: 0.008 }], 5, { capEnd: true }), 'antler');
   }
 
-  // legs
+  // legs: heavy, with big hooves
   const leg = (name, x, y, z, front) => {
     const hip = J(body, name, x, y, z);
     const kn = name.replace('Leg', 'Knee');
     if (front) {
-      ball(hip, 1, hide, 0, -0.05, 0, 0.14, 0.3, 0.2, 7, 5);          // shoulder
-      seg(hip, [0, 0, 0], [0, -0.6, 0.02], 0.14, 0.08, hide, 8);
+      add(hip, sweep([{ p: [0, 0.12, 0], rx: 0.16, ry: 0.2 }, { p: [0, -0.3, 0.02], rx: 0.13, ry: 0.14 }, { p: [0, -0.6, 0.02], rx: 0.1, ry: 0.1 }], 8, { capStart: true }), 'leg');
       const k = J(hip, kn, 0, -0.6, 0.02);
-      ball(k, 0.075, hide, 0, 0, 0, 1, 1, 1, 6, 3);
-      seg(k, [0, 0, 0], [0, -0.8, 0.02], 0.075, 0.062, hide, 6);
-      seg(k, [0, -0.82, 0.03], [0, -0.95, 0.06], 0.07, 0.085, fur, 6, false); // hoof
+      add(k, sweep([{ p: [0, 0.04, 0], rx: 0.1, ry: 0.1 }, { p: [0, -0.5, 0.02], rx: 0.08, ry: 0.08 }, { p: [0, -0.82, 0.03], rx: 0.085, ry: 0.085 }, { p: [0, -0.95, 0.07], rx: 0.1, ry: 0.09 }], 7, { capEnd: true }), 'leg');
     } else {
-      ball(hip, 1, hide, 0, -0.18, 0.0, 0.18, 0.42, 0.3, 7, 5);        // haunch
-      seg(hip, [0, -0.1, 0.05], [0, -0.95, -0.22], 0.17, 0.09, hide, 8);
+      add(hip, sweep([{ p: [0, 0.1, 0.05], rx: 0.2, ry: 0.26 }, { p: [0, -0.4, -0.06], rx: 0.16, ry: 0.18 }, { p: [0, -0.95, -0.22], rx: 0.1, ry: 0.1 }], 8, { capStart: true }), 'leg');
       const k = J(hip, kn, 0, -0.95, -0.22);
-      ball(k, 0.08, hide, 0, 0, 0, 1, 1, 1, 6, 3);
-      seg(k, [0, 0, 0], [0, -0.62, 0.1], 0.075, 0.062, hide, 6);
-      seg(k, [0, -0.63, 0.11], [0, -0.75, 0.15], 0.07, 0.085, fur, 6, false);
+      add(k, sweep([{ p: [0, 0.04, 0], rx: 0.1, ry: 0.1 }, { p: [0, -0.35, 0.06], rx: 0.08, ry: 0.08 }, { p: [0, -0.62, 0.1], rx: 0.085, ry: 0.085 }, { p: [0, -0.75, 0.15], rx: 0.1, ry: 0.09 }], 7, { capEnd: true }), 'leg');
     }
   };
-  leg('flLeg', 0.24, -0.2, 0.72, true);
-  leg('frLeg', -0.24, -0.2, 0.72, true);
-  leg('blLeg', 0.25, -0.05, -0.78, false);
-  leg('brLeg', -0.25, -0.05, -0.78, false);
+  leg('flLeg', 0.26, -0.2, 0.72, true);
+  leg('frLeg', -0.26, -0.2, 0.72, true);
+  leg('blLeg', 0.27, -0.05, -0.78, false);
+  leg('brLeg', -0.27, -0.05, -0.78, false);
 
-  // saddle + team saddle cloth
-  const cloth = new THREE.CylinderGeometry(0.47, 0.47, 0.75, 10, 1, true, Math.PI - 1.35, 2.7);
-  cloth.rotateX(Math.PI / 2);
-  add(body, cloth, team, 0, 0.0, -0.05);
-  add(body, new THREE.CylinderGeometry(0.28, 0.32, 0.1, 8), leather, 0, 0.44, -0.05, 0, 0, 0, 1, 1, 1.3);
-  add(body, new THREE.BoxGeometry(0.42, 0.14, 0.08), leather, 0, 0.52, -0.42, -0.3, 0, 0);   // cantle
-  add(body, new THREE.BoxGeometry(0.2, 0.16, 0.08), leather, 0, 0.52, 0.32, 0.3, 0, 0);      // pommel
-  seg(body, [0.44, 0.1, 0.1], [0.36, -0.36, 0.12], 0.03, 0.03, leather, 6);                // girth
-  seg(body, [-0.44, 0.1, 0.1], [-0.36, -0.36, 0.12], 0.03, 0.03, leather, 6);
+  // saddle cloth and saddle
+  add(body, sheet(1.0, 0.7, { sag: 0, wave: 0, taper: -0.1, rows: 2, cols: 5 }), 'saddlecloth', { mat: K.team2, pos: [0.47, 0.25, 0.3], rot: [0, Math.PI / 2, 0.15] });
+  add(body, sheet(1.0, 0.7, { sag: 0, wave: 0, taper: -0.1, rows: 2, cols: 5 }), 'saddlecloth', { mat: K.team2, pos: [-0.47, 0.25, -0.3], rot: [0, -Math.PI / 2, -0.15] });
+  add(body, sweep([{ p: [0, 0.44, 0.34], rx: 0.2, ry: 0.12 }, { p: [0, 0.4, 0.0], rx: 0.32, ry: 0.06 }, { p: [0, 0.48, -0.42], rx: 0.24, ry: 0.14 }], 8, { capStart: true, capEnd: true }), 'saddle');
+  add(body, sweep([{ p: [0.44, 0.1, 0.1], rx: 0.03 }, { p: [0.4, -0.3, 0.12], rx: 0.03 }], 5), 'saddle');
+  add(body, sweep([{ p: [-0.44, 0.1, 0.1], rx: 0.03 }, { p: [-0.4, -0.3, 0.12], rx: 0.03 }], 5), 'saddle');
 
-  // ---------- rider ----------
+  /* ------------------------------------------------------------------ the rider */
   const hips = J(body, 'r_hips', 0, 0.55, -0.05);
-  add(hips, new THREE.CylinderGeometry(0.2, 0.25, 0.22, 8), linen, 0, 0.0, 0);
-  add(hips, new THREE.CylinderGeometry(0.21, 0.21, 0.07, 8), leather, 0, 0.1, 0);          // belt
+  add(hips, rings([{ y: 0.12, rx: 0.22, rz: 0.18 }, { y: 0.0, rx: 0.24, rz: 0.2 }, { y: -0.12, rx: 0.22, rz: 0.18 }], 8, { capBottom: true }), 'tunic');
+  add(hips, rings([{ y: 0.14, rx: 0.23, rz: 0.19 }, { y: 0.06, rx: 0.235, rz: 0.195 }], 8), 'rleather');
   for (const s of [1, -1]) {
-    seg(hips, [s * 0.12, -0.02, 0.04], [s * 0.4, -0.18, 0.3], 0.1, 0.085, linen, 6);        // thigh
-    ball(hips, 0.085, linen, s * 0.4, -0.18, 0.3, 1, 1, 1, 6, 3);
-    seg(hips, [s * 0.4, -0.18, 0.3], [s * 0.47, -0.62, 0.12], 0.08, 0.07, leather, 6);     // shin wraps
-    add(hips, new THREE.BoxGeometry(0.12, 0.1, 0.24), leather, s * 0.48, -0.67, 0.18);       // boot
+    add(hips, sweep([{ p: [s * 0.12, -0.02, 0.04], rx: 0.11, ry: 0.11 }, { p: [s * 0.42, -0.2, 0.3], rx: 0.09, ry: 0.09 }], 6, { capStart: true }), 'tunic');
+    add(hips, sweep([{ p: [s * 0.42, -0.2, 0.3], rx: 0.09 }, { p: [s * 0.5, -0.62, 0.12], rx: 0.085 }], 6, { capStart: true }), 'rleather');
+    add(hips, rings([{ y: -0.6, rx: 0.08, rz: 0.08, z: 0.02 }, { y: -0.68, rx: 0.09, rz: 0.14, z: 0.08 }, { y: -0.72, rx: 0.085, rz: 0.13, z: 0.08 }], 6, { capBottom: true }), 'rleather', { pos: [s * 0.5, 0, 0.12] });
   }
   const spine = J(hips, 'r_spine', 0, 0.12, 0);
-  add(spine, new THREE.CylinderGeometry(0.27, 0.21, 0.5, 8), linen, 0, 0.25, 0);          // tunic torso
-  // team sash: diagonal band
-  add(spine, new THREE.BoxGeometry(0.1, 0.62, 0.5), team, 0, 0.25, 0.0, 0, 0, 0.62).scale.set(1, 1, 1.0);
-  // cloak on back
-  const cloak = new THREE.CylinderGeometry(0.29, 0.44, 0.85, 9, 1, true, Math.PI * 0.62, Math.PI * 0.76);
-  add(spine, cloak, team, 0, 0.1, -0.02);
-  add(spine, new THREE.TorusGeometry(0.22, 0.05, 4, 8), fur, 0, 0.5, 0, Math.PI / 2, 0, 0); // fur collar
-  const head2 = J(spine, 'r_head', 0, 0.52, 0);
-  seg(head2, [0, 0, 0], [0, 0.1, 0], 0.08, 0.08, skin, 6);
-  ball(head2, 0.17, skin, 0, 0.18, 0.01, 1, 1.05, 1, 9, 6);
-  ball(head2, 1, fur, 0, 0.08, 0.1, 0.13, 0.12, 0.09, 7, 5);         // beard
-  add(head2, new THREE.CylinderGeometry(0.17, 0.19, 0.13, 9), fur, 0, 0.3, 0);             // fur cap brim
-  ball(head2, 0.16, fur, 0, 0.36, 0, 1, 0.8, 1, 8, 4);               // cap crown
-  // left arm: holds reins
-  const lSh = J(spine, 'r_lShoulder', 0.28, 0.44, 0);
-  ball(lSh, 0.1, linen, 0, 0, 0, 1, 1, 1, 6, 3);
-  seg(lSh, [0, 0, 0], [0.05, -0.28, 0.05], 0.085, 0.07, linen, 6);
-  const lEl = J(lSh, 'r_lElbow', 0.05, -0.28, 0.05);
-  seg(lEl, [0, 0, 0], [-0.1, -0.02, 0.3], 0.07, 0.06, linen, 6);
-  ball(lEl, 0.075, skin, -0.1, -0.02, 0.33, 1, 1, 1, 6, 3);
-  // right arm: short spear
-  const rSh = J(spine, 'r_rShoulder', -0.28, 0.44, 0);
-  ball(rSh, 0.1, linen, 0, 0, 0, 1, 1, 1, 6, 3);
-  seg(rSh, [0, 0, 0], [-0.08, -0.27, 0.0], 0.085, 0.07, linen, 6);
-  const rEl = J(rSh, 'r_rElbow', -0.08, -0.27, 0.0);
-  seg(rEl, [0, 0, 0], [0, 0.0, 0.3], 0.07, 0.06, linen, 6);
-  ball(rEl, 0.075, skin, 0, 0, 0.33, 1, 1, 1, 6, 3);
-  // spear through the fist, pointing forward and up
-  const sd = V(0, 0.55, 0.83).normalize();
-  const hp = V(0, 0, 0.33);
-  const back = hp.clone().addScaledVector(sd, -0.6), tipb = hp.clone().addScaledVector(sd, 1.25), tip = hp.clone().addScaledVector(sd, 1.6);
-  seg(rEl, back.toArray(), tipb.toArray(), 0.03, 0.03, leather, 6, false);
-  add(rEl, new THREE.CylinderGeometry(0.04, 0.04, 0.06, 6), fur, 0, 0, 0).position.copy(hp.clone().addScaledVector(sd, 1.22));
-  cone(rEl, tipb.toArray(), tip.toArray(), 0.065, bone, 6);
-  g.userData.joints = joints;
-  const box = new THREE.Box3(), v = new THREE.Vector3(), m = new THREE.Matrix4(), im = new THREE.Matrix4();
-  g.updateMatrixWorld(true);
-  g.traverse((n) => {
-    const p = n.isMesh && n.geometry.attributes.position; if (!p) return;
-    const put = (mat) => { for (let i = 0; i < p.count; i++) box.expandByPoint(v.fromBufferAttribute(p, i).applyMatrix4(mat)); };
-    if (n.isInstancedMesh) { for (let c = 0; c < n.count; c++) { n.getMatrixAt(c, im); put(m.multiplyMatrices(n.matrixWorld, im)); } return; }
-    put(n.matrixWorld);
-  });
-  const c = box.getCenter(new THREE.Vector3());
-  g.children.forEach((o) => { o.position.x -= c.x; o.position.y -= box.min.y; o.position.z -= c.z; });
-  return g;
+  add(spine, rings([{ y: 0.52, rx: 0.12, rz: 0.1 }, { y: 0.46, rx: 0.3, rz: 0.2 }, { y: 0.3, rx: 0.3, rz: 0.22 }, { y: 0.1, rx: 0.24, rz: 0.19 }, { y: 0.0, rx: 0.23, rz: 0.18 }], 8, { capTop: true }), 'tunic');
+  add(spine, sheet(0.5, 0.8, { sag: 0.06, wave: 0.02, taper: 0.4, rows: 4, cols: 4 }), 'rcloak', { mat: K.team2, pos: [0, 0.46, -0.2], rot: [0.1, Math.PI, 0] });
+  add(spine, rings([{ y: 0.54, rx: 0.2, rz: 0.17 }, { y: 0.44, rx: 0.32, rz: 0.25 }, { y: 0.38, rx: 0.3, rz: 0.23 }], 8), 'fur', { mat: K.paint2 });
+  const head2 = J(spine, 'r_head', 0, 0.52, 0.02);
+  add(head2, blob(0.19, 0.21, 0.19, 9, 6), 'rhead', { pos: [0, 0.16, 0.01] });
+  add(head2, rings([{ y: 0.0, rx: 0.12, rz: 0.07, z: 0.12 }, { y: -0.08, rx: 0.14, rz: 0.09, z: 0.13 }, { y: -0.2, rx: 0.08, rz: 0.06, z: 0.14 }, { y: -0.26, rx: 0.03, rz: 0.03, z: 0.14 }], 7, { capTop: true, capBottom: true }), 'fur');
+  add(head2, rings([{ y: 0.46, rx: 0.02, rz: 0.02 }, { y: 0.42, rx: 0.15, rz: 0.15 }, { y: 0.34, rx: 0.2, rz: 0.2 }, { y: 0.26, rx: 0.2, rz: 0.2 }, { y: 0.24, rx: 0.19, rz: 0.19 }], 9, { capTop: true }), 'fur', { mat: K.paint2 });
+  const arm = (name, s) => {
+    const sh = J(spine, 'r_' + name + 'Shoulder', s * 0.32, 0.44, 0);
+    add(sh, blob(0.12, 0.09, 0.11, 7, 4), 'tunic', { pos: [s * 0.02, 0.02, 0] });
+    add(sh, limb(0.3, [[0.1, 0.095], [0.09, 0.085], [0.085, 0.08]], 7), 'tunic');
+    const el = J(sh, 'r_' + name + 'Elbow', 0, -0.3, 0);
+    add(el, limb(0.28, [[0.085, 0.08], [0.1, 0.095], [0.09, 0.085]], 7), 'rleather');
+    add(el, blob(0.09, 0.1, 0.085, 7, 4), 'rhand', { pos: [0, -0.32, 0.01] });
+    return el;
+  };
+  const lEl = arm('l', 1), rEl = arm('r', -1);
+  joints.r_lShoulder.rotation.set(-0.9, 0, 0.15); lEl.rotation.set(-0.9, 0, 0);
+  joints.r_rShoulder.rotation.set(-0.9, 0, -0.2); rEl.rotation.set(-0.9, 0, 0);
+  // short spear through the right fist, pointing forward and up
+  const spear = K.holdLevel(g, rEl, [0, -0.32, 0.02], new THREE.Euler(-0.6, 0, 0));
+  add(spear, rings([{ y: 1.3, rx: 0.028, rz: 0.028 }, { y: 0.0, rx: 0.032, rz: 0.032 }, { y: -0.6, rx: 0.035, rz: 0.035 }], 6, { capTop: true, capBottom: true }), 'spear');
+  add(spear, rings([{ y: 1.36, rx: 0.05, rz: 0.05 }, { y: 1.26, rx: 0.05, rz: 0.05 }], 6), 'fur');
+  add(spear, plate([[-0.06, 0], [0.06, 0], [0.03, 0.22], [0, 0.4], [-0.03, 0.22]], 0.03), 'iron', { pos: [0, 1.36, 0] });
+
+  return K.finish(g, joints);
 }

@@ -37,8 +37,9 @@ function humanoid(u, dt, pre = '') {
     const p = a.phase, sw = 0.55;
     set('lHip', -sin(p) * sw); set('rHip', sin(p) * sw);
     set('lKnee', max(0, sin(p + 1.4)) * 0.8); set('rKnee', max(0, -sin(p + 1.4)) * 0.8);
-    if (!u.def.ranged || !a.aiming) { set('lShoulder', sin(p) * 0.45, 0, 0.08); set('rShoulder', -sin(p) * 0.45, 0, -0.08); }
-    set('lElbow', -0.35); set('rElbow', -0.35);
+    if (u.def.ranged) { set('lShoulder', 0.1, 0, 0.05); set('lElbow', 0); set('rShoulder', -sin(p) * 0.45, 0, -0.08); set('rElbow', -0.35); }   // the bow arm stays put
+    else if (u.ut === 'vitez') { set('lShoulder', sin(p) * 0.15, 0, 0.05); set('rShoulder', -sin(p) * 0.3, 0, -0.05); }   // shield and axe are heavy: short swings on top of the rest bend
+    else { set('lShoulder', sin(p) * 0.45, 0, 0.08); set('rShoulder', -sin(p) * 0.45, 0, -0.08); set('lElbow', -0.35); set('rElbow', -0.35); }
     offJ(u, J('hips'), Math.abs(sin(p)) * 0.04 * s);
     set('spine', 0.06, sin(p) * 0.06, 0);
   } else if (mode === 'dance') {
@@ -56,9 +57,9 @@ function humanoid(u, dt, pre = '') {
   } else if (mode === 'rite') {
     // Rain Rite: kneel, raise the vessel to the sky, pour, strike the ground with the staff
     const cyc = (t % 6) / 6;
-    offJ(u, J('hips'), -0.24 * s);
-    set('lHip', -1.25); set('lKnee', 1.9);          // left knee up, foot planted
-    set('rHip', 0.15); set('rKnee', 1.6);           // right knee down
+    offJ(u, J('hips'), -0.13 * s);                  // a half-kneel: the robe reaches the ground already
+    set('lHip', -1.0); set('lKnee', 1.5);           // left knee up, foot planted
+    set('rHip', 0.1); set('rKnee', 1.2);            // right knee down
     const raise = cyc < 0.5 ? ease(cyc / 0.5) : 1 - ease((cyc - 0.5) / 0.5);
     set('lShoulder', -0.6 - raise * 2.1, 0, 0.25); set('lElbow', -0.4 + raise * 0.2);
     const strike = swing((t % 3) , 0.7);
@@ -75,9 +76,9 @@ function humanoid(u, dt, pre = '') {
   } else if (mode === 'attack') {
     const k = swing(a.attackT, a.attackDur);
     if (u.def.ranged) {
-      set('lShoulder', -1.55, 0, 0.1); set('lElbow', -0.05);
+      set('lShoulder', -1.1, 0, 0.1); set('lElbow', 0.6);
       const draw = a.attackT < a.attackDur * 0.8 ? ease(Math.min(1, a.attackT / (a.attackDur * 0.6))) : 0;
-      set('rShoulder', -1.5, 0, -0.1 * draw); set('rElbow', -1.4 * draw - 0.2);
+      set('rShoulder', -1.45, 0, -0.1 * draw); set('rElbow', -1.3 * draw - 0.3);
       set('spine', 0, -0.35, 0); set('head', 0, 0.3, 0);
       set('lHip', -0.2); set('rHip', 0.2);
     } else if (u.ut === 'spirit') {
@@ -85,7 +86,7 @@ function humanoid(u, dt, pre = '') {
       set('lElbow', -0.4); set('rElbow', -0.4); set('spine', -0.2 + k * 0.6);
     } else {
       set('rShoulder', -2.7 + k * 3.1, 0, -0.2); set('rElbow', -0.9 + k * 0.8);
-      set('lShoulder', -0.9, 0, 0.3); set('lElbow', -1.0);
+      set('lShoulder', -0.4, 0, 0.3); set('lElbow', -0.3);
       set('spine', -0.1 + k * 0.35, 0.4 - k * 0.8, 0);
       set('lHip', -0.45); set('lKnee', 0.4); set('rHip', 0.3);
     }
@@ -96,7 +97,7 @@ function humanoid(u, dt, pre = '') {
     set('lShoulder', 0.02, 0, 0.08 + sin(b) * 0.02); set('rShoulder', 0.02, 0, -0.08 - sin(b) * 0.02);
     set('lElbow', -0.2); set('rElbow', -0.25);
     if (u.def.ranged) { set('lShoulder', -0.3, 0, 0.1); set('lElbow', -0.5); }
-    if (u.ut === 'vitez') { set('rShoulder', -0.35, 0, -0.1); set('rElbow', -0.9); set('lShoulder', -0.5, 0, 0.2); set('lElbow', -1.1); }
+    if (u.ut === 'vitez') { set('rShoulder', -0.1, 0, -0.05); set('rElbow', -0.2); set('lShoulder', -0.15, 0, 0.1); set('lElbow', -0.3); }
   }
 }
 

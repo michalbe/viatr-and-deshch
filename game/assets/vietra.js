@@ -1,146 +1,141 @@
-// Vietra, Wind Priestess. A dancer: big flaring bell skirt, wide flared sleeves, long wind ribbons
-// trailing from the raised hand and the staff, a broad team-colour wreath, team shawl and apron.
+// Vietra, Wind Priestess. Painted-atlas build: a dancer with a huge fluted bell skirt, an
+// embroidered linen bodice, a team shawl and apron, wide flared sleeves, a blond braid under a
+// flower wreath, ribbons streaming from the raised hand and from the top of her staff.
+import { createPainter, GREY } from '../paint.js';
+import { createKit } from '../charkit.js';
+
 export default function (THREE) {
+  const P = createPainter(THREE, 512, 17);
+  const R = P.region;
+  const LINEN = 0xe6dcc3, OCHRE = 0xc98a2b, SKIN = 0xe8bc9a, BLOND = 0xc7a060, LEATHER = 0x6b4526, WOOD = 0xa27a4f;
+
+  // an embroidered band: ochre ground with a light zigzag and dark stitches, painted across the region
+  const embroidery = (c, w, y, bh, ground = OCHRE) => {
+    P.band(w, y, bh, P.tone(ground, -0.05));
+    c.strokeStyle = P.tone(LINEN, 0.3); c.lineWidth = Math.max(1.5, bh * 0.18); c.beginPath();
+    for (let x = 0; x <= w; x += bh) c.lineTo(x, y + bh * (x / bh % 2 ? 0.25 : 0.75));
+    c.stroke();
+    c.fillStyle = P.tone(0x7a2a2a, -0.2); for (let x = bh * 0.5; x < w; x += bh * 2) c.fillRect(x - 1.5, y + bh * 0.42, 3, 3);
+  };
+
+  /* ------------------------------------------------------------------ the atlas */
+  R('head', 0, 0, 256, 128, (c, w, h) => P.face(w, h, { base: SKIN, hairCol: BLOND, eye: 0x3a6a8a, eyeY: 0.5, mouthY: 0.75, eyeGap: 0.062, eyeW: 0.048, stern: 0, hairTop: 1, female: true, brow: 0.55, hairline: 0.3 }));
+  R('skirt', 256, 0, 256, 128, (c, w, h) => {
+    P.cloth(w, h, { base: LINEN, folds: 9, depth: 0.75, sway: 0.5 });
+    embroidery(c, w, h - 18, 14); embroidery(c, w, h * 0.62, 8);
+    P.vignette(w, h, { top: 0.4, bottom: 0.15 });
+  });
+  R('bodice', 0, 128, 128, 64, (c, w, h) => {
+    P.cloth(w, h, { base: LINEN, folds: 3, depth: 0.4 });
+    // chest panel of embroidery down the front, laced
+    c.fillStyle = P.tone(OCHRE, -0.1); c.fillRect(w * 0.44, 0, w * 0.12, h);
+    P.seam(w * 0.44, 0, w * 0.44, h, 2); P.seam(w * 0.56, 0, w * 0.56, h, 2);
+    for (let y = 6; y < h; y += 8) { c.strokeStyle = P.tone(0x7a2a2a, 0.1); c.lineWidth = 1.5; c.beginPath(); c.moveTo(w * 0.46, y); c.lineTo(w * 0.54, y + 4); c.stroke(); }
+    P.band(w, h - 10, 10, P.tone(OCHRE, -0.15));
+    P.vignette(w, h, { bottom: 0.3, left: 0.3, right: 0.3 });
+  });
+  R('shawl', 128, 128, 128, 64, (c, w, h) => {
+    P.cloth(w, h, { base: GREY, folds: 6, depth: 0.6 });
+    // fringe along the hem, an embroidered line above it, in greys so the clan colour tints it
+    for (let x = 2; x < w; x += 5) { c.strokeStyle = P.tone(GREY, x % 10 ? -0.4 : 0.35); c.lineWidth = 2; c.beginPath(); c.moveTo(x, h - 10); c.lineTo(x + 1, h); c.stroke(); }
+    c.strokeStyle = P.tone(GREY, 0.5); c.lineWidth = 2; c.beginPath(); for (let x = 0; x <= w; x += 6) c.lineTo(x, h - 14 + (x / 6 % 2 ? 3 : -3)); c.stroke();
+  });
+  R('sleeve', 256, 128, 64, 64, (c, w, h) => { P.cloth(w, h, { base: LINEN, folds: 4, depth: 0.55 }); embroidery(c, w, h - 10, 10); });
+  R('hand', 320, 128, 64, 64, (c, w, h) => { P.skin(w, h, { base: SKIN, blush: 0.08 }); for (let i = 0; i < 3; i++) P.seam(w * (0.38 + i * 0.12), h * 0.5, w * (0.38 + i * 0.12), h, 1.5, { dark: 'rgba(120,60,40,0.5)' }); });
+  R('braid', 384, 128, 64, 128, (c, w, h) => {
+    P.hair(w, h, { base: BLOND, sheen: 0.4 });
+    // plaited: alternating diagonal strands with a dark seam between the knots
+    for (let y = 0; y < h; y += 14) { P.seam(4, y, w - 4, y + 7, 2.5, { dark: 'rgba(70,40,15,0.55)', light: 'rgba(255,240,200,0.4)' }); P.seam(w - 4, y + 7, 4, y + 14, 2.5, { dark: 'rgba(70,40,15,0.55)', light: 'rgba(255,240,200,0.4)' }); }
+  });
+  R('wreath', 0, 192, 128, 32, (c, w, h) => { P.cloth(w, h, { base: GREY, folds: 0 }); P.strokes(w, h, { n: 90, len: 8, width: 2, angle: 0.3, jitter: 1.2, cols: [P.tone(GREY, -0.35), P.tone(GREY, 0.35)] }); });
+  R('flower', 128, 192, 32, 32, (c, w, h) => { P.fill(w, h, P.tone(LINEN, 0.1)); c.fillStyle = P.tone(OCHRE, 0.15); c.beginPath(); c.arc(w * 0.5, h * 0.5, w * 0.22, 0, Math.PI * 2); c.fill(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; c.fillStyle = P.tone(LINEN, -0.2); c.beginPath(); c.arc(w * 0.5 + Math.cos(a) * w * 0.34, h * 0.5 + Math.sin(a) * h * 0.34, w * 0.13, 0, Math.PI * 2); c.fill(); } P.vignette(w, h, { bottom: 0.4 }); });
+  R('ribbonT', 160, 192, 32, 128, (c, w, h) => { P.cloth(w, h, { base: GREY, folds: 1, depth: 0.5 }); P.grad(w, h, [[0, 'rgba(255,255,255,0)'], [1, 'rgba(0,0,0,0.3)']]); });
+  R('ribbonL', 192, 192, 32, 128, (c, w, h) => { P.cloth(w, h, { base: LINEN, folds: 1, depth: 0.5 }); embroidery(c, w, h - 8, 6); });
+  R('wood', 224, 192, 32, 128, (c, w, h) => P.wood(w, h, { base: WOOD }));
+  R('boot', 256, 192, 64, 64, (c, w, h) => P.leather(w, h, { base: LEATHER, straps: 1 }));
+  R('apron', 256, 256, 96, 128, (c, w, h) => {
+    P.cloth(w, h, { base: GREY, folds: 3, depth: 0.55 });
+    // a painted diamond lattice and hem, all in greys
+    c.strokeStyle = P.tone(GREY, 0.45); c.lineWidth = 1.5;
+    for (let y = 16; y < h - 24; y += 16) { c.beginPath(); for (let x = 0; x <= w; x += 8) c.lineTo(x, y + (x / 8 % 2 ? 4 : -4)); c.stroke(); }
+    P.band(w, h - 16, 16, P.tone(GREY, -0.4)); c.strokeStyle = P.tone(GREY, 0.5); c.lineWidth = 2; c.beginPath(); for (let x = 0; x <= w; x += 8) c.lineTo(x, h - 8 + (x / 8 % 2 ? 4 : -4)); c.stroke();
+  });
+  R('ochre', 352, 256, 32, 32, (c, w, h) => P.cloth(w, h, { base: OCHRE, folds: 0 }));
+  R('skin', 384, 256, 32, 32, (c, w, h) => P.skin(w, h, { base: SKIN }));
+  R('hairtop', 416, 256, 64, 64, (c, w, h) => { P.hair(w, h, { base: BLOND, sheen: 0.5 }); P.strokes(w, h, { n: 60, len: 30, width: 1.5, angle: Math.PI / 2, jitter: 0.15, cols: [P.tone(BLOND, -0.5, 0.6), P.tone(BLOND, 0.5, 0.5)] }); P.vignette(w, h, { bottom: 0.4 }); });
+
+  /* ------------------------------------------------------------------ the body */
+  // A slender dancer against the Vitez's bulk, but still an RTS figure: big head, big hands,
+  // a skirt as wide as she is tall, sleeves that flare to the width of the head.
+  const K = createKit(THREE, P);
+  const { joint, rings, blob, limb, sheet, ribbon, flute, add } = K;
   const g = new THREE.Group();
-  const mat = (hex, name, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.85, ...o }); if (name) m.name = name; return m; };
-  const linen = mat(0xe6dcc3, 'fabric', { side: THREE.DoubleSide }), ochre = mat(0xc98a2b, 'fabric', { side: THREE.DoubleSide }), team = mat(0xc0282d, 'fabric', { side: THREE.DoubleSide });
-  const skin = mat(0xd9a07a), blond = mat(0xc7a060), wood = mat(0xa27a4f, 'timber'), leather = mat(0x6b4526, 'fabric');
-  const J = (p, x, y, z) => { const o = new THREE.Object3D(); o.position.set(x, y, z); p.add(o); return o; };
-  const add = (p, geo, m, pos = [0, 0, 0], rot = [0, 0, 0], sc = [1, 1, 1]) => {
-    const me = new THREE.Mesh(geo, m); me.position.set(...pos); me.rotation.set(...rot); me.scale.set(...sc); p.add(me); return me; };
-  const cyl = (rt, rb, h, s = 8, open = false) => new THREE.CylinderGeometry(rt, rb, h, s, 1, open);
-  const sph = (r, w = 8, h = 6) => new THREE.SphereGeometry(r, w, h);
-  const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
-  const lathe = (pts, s = 12, p0 = 0, pl = Math.PI * 2) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), s, p0, pl);
-  // fluted, wind-swirled hem: radius grows with a wave the further down the skirt it is
-  const flute = (geo, top, bot, amp = 0.09, k = 7, twist = 0.35) => {
-    const p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = Math.min(1, Math.max(0, (top - y) / (top - bot)));
-      const a = Math.atan2(x, z) + twist * t, f = 1 + amp * t * t * Math.sin(k * a);
-      p.setXYZ(i, x * f, y, z * f);
-    }
-    geo.computeVertexNormals(); return geo;
-  };
-  // a flat ribbon streaming along dir with a travelling wave; top end at the origin
-  const ribbon = (len, w, dir, wave, amp, ph = 0, segs = 7) => {
-    const geo = new THREE.PlaneGeometry(w, len, 1, segs), p = geo.attributes.position;
-    const d = new THREE.Vector3(...dir).normalize(), wv = new THREE.Vector3(...wave).normalize();
-    const side = new THREE.Vector3().crossVectors(d, wv).normalize(), q = new THREE.Vector3();
-    for (let i = 0; i < p.count; i++) {
-      const t = (len / 2 - p.getY(i)) / len, s = p.getX(i);
-      q.copy(d).multiplyScalar(t * len).addScaledVector(wv, Math.sin(t * Math.PI * 2.2 + ph) * amp * t).addScaledVector(side, s * (1 - 0.3 * t));
-      p.setXYZ(i, q.x, q.y, q.z);
-    }
-    geo.computeVertexNormals(); return geo;
-  };
 
-  // ---- skeleton
-  const hips = J(g, 0, 0.9, 0);
-  const spine = J(hips, 0, 0.06, 0);
-  const head = J(spine, 0, 0.42, 0);
-  const lShoulder = J(spine, 0.22, 0.34, 0), rShoulder = J(spine, -0.22, 0.34, 0);
-  const lElbow = J(lShoulder, 0, -0.28, 0), rElbow = J(rShoulder, 0, -0.28, 0);
-  const lHip = J(hips, 0.1, -0.04, 0), rHip = J(hips, -0.1, -0.04, 0);
-  const lKnee = J(lHip, 0, -0.4, 0), rKnee = J(rHip, 0, -0.4, 0);
+  const hips = joint(g, 0, 0.9, 0);
+  const spine = joint(hips, 0, 0.06, 0);
+  const head = joint(spine, 0, 0.46, 0.02);
+  const lShoulder = joint(spine, 0.25, 0.38, 0), rShoulder = joint(spine, -0.25, 0.38, 0);
+  const lElbow = joint(lShoulder, 0, -0.28, 0), rElbow = joint(rShoulder, 0, -0.28, 0);
+  const lHip = joint(hips, 0.1, -0.04, 0), rHip = joint(hips, -0.1, -0.04, 0);
+  const lKnee = joint(lHip, 0, -0.4, 0), rKnee = joint(rHip, 0, -0.4, 0);
 
-  // ---- big bell skirt (hips), fluted hem, ochre hem band, team apron front and back
-  const sk = [[0.17, 0.05], [0.2, -0.12], [0.28, -0.38], [0.42, -0.64], [0.56, -0.8], [0.62, -0.87]];
-  add(hips, flute(lathe(sk, 14), 0.05, -0.87), linen);
-  add(hips, flute(lathe([[0.575, -0.8], [0.632, -0.878]], 14), 0.05, -0.87), ochre, [0, 0, 0], [0, 0, 0], [1.01, 1, 1.01]);
-  add(hips, flute(lathe([[0.36, -0.56], [0.395, -0.62]], 14), 0.05, -0.87), ochre, [0, 0, 0], [0, 0, 0], [1.01, 1, 1.01]);
-  for (const [p0, sc] of [[-0.75, 1], [Math.PI - 0.75, 1]]) {
-    add(hips, flute(lathe([[0.19, 0.0], [0.22, -0.12], [0.3, -0.38], [0.42, -0.6]], 6, p0, 1.5), 0.05, -0.87), team, [0, 0, 0], [0, 0, 0], [1.05 * sc, 1, 1.05 * sc]);
-  }
-  add(hips, cyl(0.19, 0.19, 0.09, 10, true), team, [0, 0.02, 0]);                   // waist sash
-  add(hips, cyl(0.195, 0.195, 0.03, 10, true), ochre, [0, 0.07, 0]);
+  // skirt: a fluted bell from the waist to the ground, apron over the front
+  add(hips, flute(rings([{ y: 0.05, rx: 0.18, rz: 0.15 }, { y: -0.14, rx: 0.22, rz: 0.19 }, { y: -0.4, rx: 0.32, rz: 0.28 }, { y: -0.66, rx: 0.48, rz: 0.43 }, { y: -0.84, rx: 0.62, rz: 0.56 }, { y: -0.9, rx: 0.64, rz: 0.58 }], 14), 0.05, -0.9), 'skirt', { mat: K.paint2 });
+  add(hips, sheet(0.26, 0.74, { sag: -0.22, wave: 0.02, taper: 0.5, rows: 6 }), 'apron', { mat: K.team2, pos: [0, 0.04, 0.16], rot: [0.05, 0, 0] });
+  add(hips, rings([{ y: 0.09, rx: 0.19, rz: 0.16 }, { y: 0.02, rx: 0.2, rz: 0.17 }], 10), 'ochre');
 
-  // ---- legs (hidden under the bell; boots show at the hem)
+  // bodice and the team shawl over the shoulders, its points hanging down the front
+  add(spine, rings([{ y: 0.46, rx: 0.075, rz: 0.07 }, { y: 0.4, rx: 0.2, rz: 0.15 }, { y: 0.26, rx: 0.21, rz: 0.17 }, { y: 0.1, rx: 0.16, rz: 0.13 }, { y: 0.0, rx: 0.18, rz: 0.15 }], 10, { capTop: true }), 'bodice');
+  add(spine, rings([{ y: 0.47, rx: 0.1, rz: 0.09 }, { y: 0.41, rx: 0.3, rz: 0.24 }, { y: 0.28, rx: 0.37, rz: 0.3 }, { y: 0.2, rx: 0.36, rz: 0.3 }], 12), 'shawl', { mat: K.team2 });
+  for (const s of [1, -1]) add(spine, sheet(0.14, 0.34, { sag: -0.04, taper: -0.6, rows: 3, cols: 2 }), 'shawl', { mat: K.team2, pos: [s * 0.1, 0.24, 0.17], rot: [0.1, 0, s * 0.15] });
+  add(spine, sheet(0.3, 0.42, { sag: 0.05, taper: -0.7, rows: 3, cols: 3 }), 'shawl', { mat: K.team2, pos: [0, 0.3, -0.2], rot: [0, Math.PI, 0] });
+
+  // legs: mostly under the bell; boots show at the hem when she dances
   for (const [hip, knee] of [[lHip, lKnee], [rHip, rKnee]]) {
-    add(knee, cyl(0.055, 0.05, 0.38, 6), leather, [0, -0.19, 0]);
-    add(knee, box(0.12, 0.09, 0.22), leather, [0, -0.43, 0.06]);
+    add(hip, limb(0.42, [[0.09, 0.085], [0.08, 0.075], [0.07, 0.065]], 6), 'skin');
+    add(knee, limb(0.4, [[0.07, 0.065], [0.075, 0.07], [0.085, 0.08]], 7), 'boot');
+    add(knee, rings([{ y: -0.36, rx: 0.08, rz: 0.08, z: 0.02 }, { y: -0.43, rx: 0.095, rz: 0.15, z: 0.07 }, { y: -0.46, rx: 0.09, rz: 0.14, z: 0.07 }], 7, { capBottom: true }), 'boot');
   }
 
-  // ---- torso (spine) and a wide team shawl over the shoulders, readable from above
-  add(spine, cyl(0.2, 0.16, 0.38, 8), linen, [0, 0.19, 0], [0, 0, 0], [1, 1, 0.75]);
-  add(spine, box(0.07, 0.24, 0.04), ochre, [0, 0.12, 0.13]);                          // chest embroidery
-  add(spine, cyl(0.16, 0.2, 0.05, 8, true), ochre, [0, 0.0, 0], [0, 0, 0], [1, 1, 0.8]); // belt
-  add(spine, lathe([[0.11, 0.44], [0.22, 0.4], [0.33, 0.3], [0.38, 0.16], [0.37, 0.12]], 12), team, [0, 0, 0], [0, 0, 0], [1, 1, 0.82]);
-  add(spine, lathe([[0.37, 0.12], [0.385, 0.16], [0.378, 0.2]], 12), ochre, [0, 0, 0], [0, 0, 0], [1, 1, 0.82]);
-  add(spine, new THREE.ConeGeometry(0.3, 0.42, 3, 1, true), team, [0, 0.0, -0.17], [Math.PI + 0.12, Math.PI / 3, 0], [1, 1, 0.25]); // shawl point down the back
-  add(spine, new THREE.ConeGeometry(0.06, 0.34, 4), team, [0.07, 0.02, 0.17], [Math.PI - 0.15, 0, 0.1], [1, 1, 0.35]); // shawl ends at the front
-  add(spine, new THREE.ConeGeometry(0.06, 0.3, 4), team, [-0.07, 0.04, 0.17], [Math.PI - 0.15, 0, -0.1], [1, 1, 0.35]);
+  // head: big, blond, a braid down the back, a flower wreath
+  add(head, blob(0.19, 0.22, 0.2, 10, 6), 'head', { pos: [0, 0.2, 0.01] });
+  add(head, rings([{ y: 0.42, rx: 0.02, rz: 0.02 }, { y: 0.38, rx: 0.12, rz: 0.13 }, { y: 0.3, rx: 0.2, rz: 0.21 }, { y: 0.2, rx: 0.205, rz: 0.215 }, { y: 0.14, rx: 0.19, rz: 0.2 }], 10, { capTop: true }), 'hairtop', { pos: [0, 0, -0.01] });
+  add(head, rings([{ y: 0.14, rx: 0.06, rz: 0.055, z: -0.17 }, { y: 0.0, rx: 0.065, rz: 0.06, z: -0.2 }, { y: -0.16, rx: 0.06, rz: 0.055, z: -0.22 }, { y: -0.32, rx: 0.05, rz: 0.045, z: -0.22 }, { y: -0.44, rx: 0.03, rz: 0.03, z: -0.2 }], 7, { capTop: true, capBottom: true }), 'braid');
+  add(head, sheet(0.09, 0.14, { sag: 0, taper: 0.2, rows: 2, cols: 1 }), 'ribbonT', { mat: K.team2, pos: [0, -0.4, -0.2] });
+  const wreath = joint(head, 0, 0.31, -0.01); wreath.rotation.x = -0.15;
+  add(wreath, new THREE.TorusGeometry(0.22, 0.045, 5, 12), 'wreath', { mat: K.team, rot: [Math.PI / 2, 0, 0] });
+  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; add(wreath, blob(0.05, 0.035, 0.05, 6, 3), 'flower', { pos: [Math.sin(a) * 0.22, 0.04, Math.cos(a) * 0.22] }); }
 
-  // ---- head: large (x1.25) with a broad team wreath
-  const hg = J(head, 0, 0, 0); hg.scale.setScalar(1.25);
-  add(hg, cyl(0.055, 0.06, 0.1, 6), skin, [0, 0.03, 0]);
-  add(hg, sph(0.17, 9, 7), skin, [0, 0.19, 0.01], [0, 0, 0], [1, 1.05, 1]);
-  add(hg, box(0.04, 0.07, 0.05), skin, [0, 0.17, 0.18]);                      // nose
-  add(hg, sph(0.022, 4, 3), leather, [0.06, 0.21, 0.155]);                    // eyes
-  add(hg, sph(0.022, 4, 3), leather, [-0.06, 0.21, 0.155]);
-  add(hg, sph(0.18, 8, 6), blond, [0, 0.215, -0.02], [0, 0, 0], [1.02, 1, 1]);
-  const wreath = J(hg, 0, 0.29, -0.01); wreath.rotation.x = -0.18;
-  add(wreath, new THREE.TorusGeometry(0.24, 0.055, 4, 12), team, [0, 0, 0], [Math.PI / 2, 0, 0]);
-  for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; add(wreath, sph(0.055, 5, 3), i % 2 ? ochre : linen, [Math.sin(a) * 0.24, 0.045, Math.cos(a) * 0.24]); }
-  // braid: stacked beads down the back, ending in a ribbon
-  const braid = J(hg, 0, 0.14, -0.17);
-  for (let i = 0; i < 4; i++) add(braid, sph(0.058 - i * 0.004, 6, 3), blond, [0, -0.04 - i * 0.1, -0.03 - i * 0.01], [0, 0, 0], [1, 1.5, 1]);
-  add(braid, box(0.09, 0.12, 0.02), team, [0, -0.46, -0.07]);
-
-  // ---- arms: wide flared sleeves, large hands
-  for (const [sh, el] of [[lShoulder, lElbow], [rShoulder, rElbow]]) {
-    add(sh, cyl(0.075, 0.09, 0.28, 8), linen, [0, -0.14, 0]);
-    add(el, cyl(0.09, 0.2, 0.26, 9, true), linen, [0, -0.1, 0]);
-    add(el, cyl(0.2, 0.215, 0.04, 9, true), ochre, [0, -0.225, 0]);
-    add(el, cyl(0.04, 0.045, 0.18, 6), skin, [0, -0.2, 0]);
-    add(el, sph(0.065, 7, 5), skin, [0, -0.32, 0.01], [0, 0, 0], [0.85 * 1.25, 1.1 * 1.25, 1.25]);
+  // arms: fitted upper sleeve, wide flared cuff, big hands
+  for (const [sh, el, s] of [[lShoulder, lElbow, 1], [rShoulder, rElbow, -1]]) {
+    add(sh, limb(0.28, [[0.09, 0.085], [0.085, 0.08], [0.08, 0.075]], 8), 'sleeve');
+    add(el, rings([{ y: 0.02, rx: 0.08, rz: 0.075 }, { y: -0.1, rx: 0.1, rz: 0.095 }, { y: -0.22, rx: 0.18, rz: 0.17 }, { y: -0.26, rx: 0.2, rz: 0.19 }], 9), 'sleeve', { mat: K.paint2 });
+    add(el, limb(0.2, [[0.045, 0.042], [0.045, 0.042]], 6), 'skin', { pos: [0, -0.12, 0] });
+    add(el, blob(0.08, 0.1, 0.07, 8, 5), 'hand', { pos: [0, -0.34, 0.01] });
+    add(el, blob(0.03, 0.045, 0.03, 5, 3), 'hand', { pos: [s * 0.07, -0.3, 0.05], rot: [0.5, 0, s * 0.5] });
   }
-
-  // ---- pose: right hand grips the staff, left arm raised in the dance
   rShoulder.rotation.set(-0.35, 0, -0.12);
   rElbow.rotation.set(-0.8, 0, 0);
   lShoulder.rotation.set(0, 0, 1.05);
   lElbow.rotation.set(0, 0, 0.75);
 
-  const holdLevel = (elbow, pos, euler) => {
-    const h = J(elbow, ...pos);
-    g.updateMatrixWorld(true);
-    const q = new THREE.Quaternion(); elbow.getWorldQuaternion(q);
-    h.quaternion.copy(q.invert()).multiply(new THREE.Quaternion().setFromEuler(euler));
-    g.updateMatrixWorld(true);
-    return h;
-  };
-
   // ribbons streaming from the raised left hand
-  const lh = holdLevel(lElbow, [0, -0.34, 0.01], new THREE.Euler(0, 0, 0));
-  add(lh, ribbon(0.85, 0.1, [0.35, -0.6, -0.55], [0, 1, -0.3], 0.12, 0), team);
-  add(lh, ribbon(0.7, 0.085, [0.55, -0.55, -0.2], [0, 1, 0.3], 0.1, 1.5), linen);
-  add(lh, ribbon(0.62, 0.08, [0.15, -0.75, -0.2], [1, 0, 0], 0.09, 2.6), team);
+  const lh = K.holdLevel(g, lElbow, [0, -0.34, 0.01], new THREE.Euler(0, 0, 0));
+  add(lh, ribbon(0.85, 0.1, [0.35, -0.6, -0.55], [0, 1, -0.3], 0.12, 0), 'ribbonT', { mat: K.team2 });
+  add(lh, ribbon(0.7, 0.085, [0.55, -0.55, -0.2], [0, 1, 0.3], 0.1, 1.5), 'ribbonL', { mat: K.paint2 });
+  add(lh, ribbon(0.62, 0.08, [0.15, -0.75, -0.2], [1, 0, 0], 0.09, 2.6), 'ribbonT', { mat: K.team2 });
 
-  // ---- staff, child of rElbow, kept world-vertical
-  const grip = holdLevel(rElbow, [0, -0.32, 0.01], new THREE.Euler(0, 0, -0.06));
-  const gy = grip.getWorldPosition(new THREE.Vector3()).y;
-  const top = 2.02 - gy, bot = 0.04 - gy;
-  add(grip, cyl(0.03, 0.036, top - bot, 7), wood, [0, (top + bot) / 2, 0]);
-  add(grip, sph(0.07, 7, 5), ochre, [0, top, 0]);
-  add(grip, new THREE.TorusGeometry(0.1, 0.022, 4, 8), wood, [0, top - 0.12, 0], [Math.PI / 2, 0, 0]);
-  add(grip, cyl(0.045, 0.045, 0.05, 7), ochre, [0, top - 0.24, 0]);
-  // long ribbons trailing on the wind off the top ring
-  const rib = [[team, 1.0, [-0.75, -0.45, -0.35], 0], [linen, 0.85, [-0.6, -0.55, -0.6], 1.2], [team, 0.9, [-0.35, -0.5, -0.8], 2.3], [linen, 0.7, [-0.85, -0.6, 0.05], 3.1], [team, 0.75, [-0.2, -0.7, 0.55], 4.0]];
-  for (const [m, len, dir, ph] of rib) add(grip, ribbon(len, 0.1, dir, [0, 1, 0], 0.13, ph), m, [0, top - 0.12, 0]);
-
-  // ---- place: base at y=0, centred on x/z
-  const bb = new THREE.Box3(), v = new THREE.Vector3(), m4 = new THREE.Matrix4(), im = new THREE.Matrix4();
+  // staff in the right hand, kept world-vertical, ribbons off the top ring
+  const grip = K.holdLevel(g, rElbow, [0, -0.32, 0.01], new THREE.Euler(0, 0, -0.06));
   g.updateMatrixWorld(true);
-  g.traverse((n) => {
-    const p = n.isMesh && n.geometry.attributes.position; if (!p) return;
-    const put = (mt) => { for (let i = 0; i < p.count; i++) bb.expandByPoint(v.fromBufferAttribute(p, i).applyMatrix4(mt)); };
-    if (n.isInstancedMesh) { for (let c = 0; c < n.count; c++) { n.getMatrixAt(c, im); put(m4.multiplyMatrices(n.matrixWorld, im)); } return; }
-    put(n.matrixWorld);
-  });
-  const c = bb.getCenter(new THREE.Vector3());
-  g.children.forEach((o) => { o.position.x -= c.x; o.position.y -= bb.min.y; o.position.z -= c.z; });
+  const gy = grip.getWorldPosition(new THREE.Vector3()).y;
+  const top = 2.06 - gy, bot = 0.04 - gy;
+  add(grip, rings([{ y: top, rx: 0.028, rz: 0.028 }, { y: top - 0.5, rx: 0.03, rz: 0.03 }, { y: bot + 0.3, rx: 0.034, rz: 0.034 }, { y: bot, rx: 0.038, rz: 0.038 }], 7, { capTop: true, capBottom: true }), 'wood');
+  add(grip, blob(0.07, 0.07, 0.07, 7, 4), 'ochre', { pos: [0, top, 0] });
+  add(grip, new THREE.TorusGeometry(0.1, 0.022, 4, 8), 'wood', { pos: [0, top - 0.12, 0], rot: [Math.PI / 2, 0, 0] });
+  add(grip, rings([{ y: 0.03, rx: 0.045, rz: 0.045 }, { y: -0.03, rx: 0.045, rz: 0.045 }], 7), 'ochre', { pos: [0, top - 0.24, 0] });
+  const rib = [['ribbonT', K.team2, 1.0, [-0.75, -0.45, -0.35], 0], ['ribbonL', K.paint2, 0.85, [-0.6, -0.55, -0.6], 1.2], ['ribbonT', K.team2, 0.9, [-0.35, -0.5, -0.8], 2.3], ['ribbonL', K.paint2, 0.7, [-0.85, -0.6, 0.05], 3.1], ['ribbonT', K.team2, 0.75, [-0.2, -0.7, 0.55], 4.0]];
+  for (const [rg, m, len, dir, ph] of rib) add(grip, ribbon(len, 0.1, dir, [0, 1, 0], 0.13, ph), rg, { mat: m, pos: [0, top - 0.12, 0] });
 
-  g.userData.joints = { hips, spine, head, lShoulder, lElbow, rShoulder, rElbow, lHip, lKnee, rHip, rKnee };
-  return g;
+  return K.finish(g, { hips, spine, head, lShoulder, lElbow, rShoulder, rElbow, lHip, lKnee, rHip, rKnee });
 }
