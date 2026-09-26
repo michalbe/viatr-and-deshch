@@ -114,7 +114,7 @@ export function updateAudio(dancers, ritualists, near) {
 const last = {};
 function throttle(name, ms) { const n = performance.now(); if (last[name] && n - last[name] < ms) return false; last[name] = n; return true; }
 export function sfx(name, vol = 1) {
-  if (!ctx || ctx.state !== 'running' || !throttle(name, name === 'click' ? 30 : 70)) return;
+  if (!ctx || ctx.state !== 'running' || vol <= 0 || !throttle(name, name === 'click' ? 30 : 70)) return;
   const t = ctx.currentTime;
   if (name === 'bow') {
     const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle';
