@@ -9,6 +9,7 @@ import { heightAt, G, baseColors } from './terrain.js';
 import { makeBuildingModel } from './models.js';
 import { sfx, setMuted, isMuted } from './audio.js';
 import { ICON } from './icons.js';
+import { RITUALS, canPerform, defaultRitual, targetKind } from './rituals.js';
 
 const $ = (id) => document.getElementById(id);
 const TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
@@ -49,7 +50,7 @@ export class UI {
   /* ------------------------------------------------------------ camera */
   updateCamera(dt) {
     const pan = new THREE.Vector2();
-    if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) pan.y -= 1;
+    if (this.keys.has('KeyW') && !this.cmdKeys.KeyW || this.keys.has('ArrowUp')) pan.y -= 1;
     if (this.keys.has('KeyS') && !this.cmdKeys.KeyS || this.keys.has('ArrowDown')) pan.y += 1;
     if (this.keys.has('KeyA') && !this.cmdKeys.KeyA || this.keys.has('ArrowLeft')) pan.x -= 1;
     if (this.keys.has('KeyD') && !this.cmdKeys.KeyD || this.keys.has('ArrowRight')) pan.x += 1;
@@ -95,7 +96,7 @@ export class UI {
   screenOf(x, y, z) { const v = new THREE.Vector3(x, y, z).project(this.cam); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; }
   shown(e) {
     if (e.team === TEAM.PLAYER) return true;
-    if (e.kind === 'building') return this.g.cellSeen(e.x, e.z);
+    if (e.kind === 'building' || e.kind === 'site' || e.kind === 'corpse') return this.g.cellSeen(e.x, e.z);
     return this.g.cellVisible(e.x, e.z);
   }
   pick(sx, sy) {
@@ -115,6 +116,14 @@ export class UI {
       if (p && Math.abs(p.x - b.x) < h && Math.abs(p.z - b.z) < h) return b;
       const [x, y] = this.screenOf(b.x, heightAt(b.x, b.z) + b.def.height * 0.55, b.z);
       if (Math.hypot(x - sx, y - sy) < b.def.size * innerHeight / this.dist * 0.35) return b;
+    }
+    for (const st of this.g.sites) {
+      if (st.dead || !this.shown(st)) continue;
+      if (p && Math.hypot(p.x - st.x, p.z - st.z) < st.radius + 0.8) return st;
+    }
+    for (const c of this.g.corpses || []) {
+      if (!this.shown(c)) continue;
+      if (p && Math.hypot(p.x - c.x, p.z - c.z) < 1.4) return c;
     }
     return null;
   }
@@ -146,7 +155,19 @@ export class UI {
       return;
     }
     if (!units.length) return;
-    if (t && t.team !== TEAM.PLAYER) {
+    if (this.mode?.type === 'ritual') {
+      const target = t || (p ? { kind: 'ground', x: p.x, z: p.z, radius: 0 } : null);
+      if (target) this.doRitual(this.mode.ritual, units, target);
+      this.cancelMode();
+      return;
+    }
+    // a ritualist on a sacred thing: the rite that makes sense there
+    if (t && (t.kind === 'site' || t.kind === 'corpse' || (t.kind === 'unit' && t.def.kind === 'spirit' && !t.appeased) || (t.kind === 'building' && t.team === TEAM.PLAYER && (t.hp < t.maxHp - 0.5 || t.state)))) {
+      const ritualists = units.filter((u) => defaultRitual(u, t));
+      if (ritualists.length) { const r = defaultRitual(ritualists[0], t); this.doRitual(r, ritualists, t); return; }
+      if (t.kind === 'site' || t.kind === 'corpse') { if (p) { g.moveGroup(units, p.x, p.z, 'move'); this.g.fx.orderMarker(p.x, p.y, p.z, 0x9fff7a); sfx('click'); } return; }
+    }
+    if (t && t.team !== TEAM.PLAYER && t.kind !== 'site' && t.kind !== 'corpse') {
       const fighters = units.filter((u) => u.def.kind !== 'econ');
       g.attack(fighters.length ? fighters : units, t);
       this.g.fx.orderMarker(t.x, heightAt(t.x, t.z), t.z, 0xff6050);
@@ -170,6 +191,24 @@ export class UI {
       this.g.fx.orderMarker(p.x, p.y, p.z, this.mode?.type === 'amove' ? 0xff9a50 : 0x9fff7a);
       sfx('click');
     }
+  }
+  doRitual(ritual, units, target) {
+    const g = this.g, able = units.filter((u) => canPerform(ritual, u, target).ok);
+    if (!able.length) { const why = canPerform(ritual, units[0], target).why; this.toast(why, 'bad'); sfx('deny'); return; }
+    // one ritualist per rite, the nearest; the rest wait beside
+    able.sort((a, b) => Math.hypot(a.x - target.x, a.z - target.z) - Math.hypot(b.x - target.x, b.z - target.z));
+    const r = g.startRitual(able[0], ritual, target);
+    if (!r.ok) { this.toast(r.why, 'bad'); sfx('deny'); return; }
+    for (const u of able.slice(1)) g.order(u, { type: 'move', x: target.x + (Math.random() - 0.5) * 4, z: target.z + 4 + Math.random() * 2 });
+    this.g.fx.orderMarker(target.x, heightAt(target.x, target.z), target.z, 0xc8f0ff);
+    sfx('click');
+  }
+  startRitualMode(ritual) {
+    const r = RITUALS[ritual];
+    this.cancelMode();
+    this.mode = { type: 'ritual', ritual };
+    $('placehint').textContent = (TOUCH ? 'Tap ' : 'Click ') + (ritual === 'mend' ? 'a damaged structure to mend' : ritual === 'wake' ? 'an idol to wake' : ritual === 'consecrate' ? 'a mound, a corpse, an idol or a troubled Zdroy' : ritual === 'offer' ? 'the spirit or the sacred place to make the offering to' : 'where the rite should be performed') + (TOUCH ? '' : '. Esc to cancel.');
+    $('placehint').classList.add('on');
   }
   async tryBuild(u, bt, x, z) {
     const r = await this.g.build(u, bt, x, z);
@@ -249,6 +288,10 @@ export class UI {
         const d = BUILDINGS[bt]; cmds.push({ label: 'Raise ' + d.name, key: d.key, icon: this.portraits[bt], cost: d, tip: `Raise ${d.name}: ${d.title}`, act: () => this.startPlace(bt) });
       }
     }
+    const ritual = (id) => { const r = RITUALS[id]; return { label: r.name, key: r.key, glyph: ICON[id] || ICON.rite, tip: r.tip, cost: r.cost, act: () => this.startRitualMode(id) }; };
+    if (has('vietra') || has('zherca')) cmds.push(ritual('mend'));
+    if (has('zherca')) { cmds.push(ritual('consecrate')); cmds.push(ritual('offer')); cmds.push(ritual('wake')); }
+    if (has('baba')) { cmds.push(ritual('sight')); cmds.push(ritual('ward')); }
     if (units.some((u) => u.def.kind !== 'econ')) cmds.push({ label: 'Attack', key: 'A', glyph: ICON.attack, tip: 'Attack-move: fight anything on the way', act: () => { this.cancelMode(); this.mode = { type: 'amove' }; $('placehint').textContent = TOUCH ? 'Tap where to attack-move' : 'Click where to attack-move'; $('placehint').classList.add('on'); } });
     cmds.push({ label: 'Stop', key: 'S', glyph: ICON.stop, tip: 'Stop', act: () => { g.stop(units); sfx('click'); } });
     return cmds;
@@ -261,16 +304,26 @@ export class UI {
     if (!sel.length) { $('queuebar').classList.remove('on'); panel.classList.add('empty'); $('cmds').innerHTML = ''; $('info').innerHTML = '<div class="hint">' + (TOUCH ? 'Tap a unit to select it. Drag to look around.' : 'Select units with a click or a box. Right-click (or Cmd+click) to command.') + '</div>'; $('portrait').style.backgroundImage = ''; this.cmdKeys = {}; this.lastCmdSig = ''; this.syncPanelH(); return; }
     panel.classList.remove('empty');
     const e = sel[0];
-    const key = e.kind === 'unit' ? e.ut : e.bt;
+    const key = e.kind === 'unit' ? e.ut : e.kind === 'building' ? e.bt : e.kind === 'site' ? 'site_' + e.st : 'corpse';
     $('portrait').style.backgroundImage = this.portraits[key] ? `url(${this.portraits[key]})` : '';
     let html = '', queueHtml = '';
+    if (e.kind === 'site' || e.kind === 'corpse') {
+      const STATE = { sleeping: 'SLEEPING', awake: 'AWAKE', blessed: 'BLESSED', bound: 'BOUND', corrupted: 'CORRUPTED', broken: 'BROKEN', restless: 'RESTLESS', consecrated: 'AT PEACE', appeased: 'APPEASED', waiting: 'WAITING' };
+      html += `<div class="nm">${e.name || (e.kind === 'corpse' ? 'The dead' : 'Sacred place')}</div><div class="tt">${e.title || ''}</div>`;
+      html += `<div class="st state">${STATE[e.state] || (e.state || '').toUpperCase()}</div>`;
+      if (e.kind === 'corpse') html += `<div class="st">A Zherca can consecrate it so it stays down.</div>`;
+      else if (e.st === 'idol') html += `<div class="st">${e.state === 'sleeping' ? 'A Zherca can Wake it, or make an Offering.' : e.state === 'awake' ? 'It watches the valley.' : ''}</div>`;
+      else if (e.st === 'mound') html += `<div class="st">${e.state === 'consecrated' ? 'The dead here sleep.' : 'The dead here do not sleep. Consecrate it.'}</div>`;
+      $('info').innerHTML = html; this.syncPanelH(); $('queuebar').classList.remove('on'); $('cmds').innerHTML = ''; this.cmdKeys = {}; this.lastCmdSig = 'site'; return;
+    }
     if (sel.length === 1) {
       const d = e.def;
-      const owner = e.team === TEAM.PLAYER ? '' : e.team === TEAM.RIVAL ? ' <span class="foe">Rival Rodina</span>' : ' <span class="neutral">Wild</span>';
+      const owner = e.team === TEAM.PLAYER ? '' : e.team === TEAM.RIVAL ? ' <span class="foe">Rival Rodina</span>' : ` <span class="neutral">${e.appeased ? 'Appeased' : 'Wild'}</span>`;
       html += `<div class="nm">${d.name}${owner}</div><div class="tt">${d.title || ''}</div>`;
       html += `<div class="hp"><i style="width:${(e.hp / e.maxHp * 100).toFixed(0)}%"></i><b>${Math.ceil(e.hp)} / ${e.maxHp}</b></div>`;
       if (e.kind === 'unit') {
-        const st = e.anim.mode === 'dance' ? 'Dancing: +1 Wind/s' : e.anim.mode === 'rite' ? 'Rain Rite: +1 Rain/s' : e.order?.type === 'build' ? 'Raising' : e.interruptT > 0 ? 'Interrupted by combat' : e.order?.type === 'attack' ? 'Fighting' : e.order ? 'Moving' : 'Idle';
+        const ro = e.order?.type === 'ritual' ? e.order : null;
+        const st = ro ? `${RITUALS[ro.ritual].name}${RITUALS[ro.ritual].continuous ? '' : `: ${Math.min(99, (ro.t / RITUALS[ro.ritual].dur * 100) | 0)}%`}` : e.order?.type === 'build' ? 'Raising' : e.anim.mode === 'dance' ? 'Dancing: +1 Wind/s' : e.anim.mode === 'rite' ? 'Rain Rite: +1 Rain/s' : e.interruptT > 0 ? 'Interrupted by combat' : e.order?.type === 'attack' ? 'Fighting' : e.order ? 'Moving' : 'Idle';
         html += `<div class="st">${st} · dmg ${d.dmg} · range ${d.range}</div>`;
       } else {
         if (!e.built) html += `<div class="st">Rising: ${(e.progress * 100) | 0}%</div>`;
@@ -386,6 +439,7 @@ export class UI {
     this.mmFogCtx.putImageData(this.mmFogImg, 0, 0);
     ctx.drawImage(this.mmFog, 0, 0, W, W);
     for (const s of g.springs) if (g.cellSeen(s.x, s.z)) { ctx.fillStyle = '#7fc8ff'; ctx.beginPath(); ctx.arc(w(s.x), w(s.z), 3, 0, 7); ctx.fill(); }
+    for (const s of g.sites) if (!s.dead && g.cellSeen(s.x, s.z)) { ctx.fillStyle = s.st === 'mound' ? (s.state === 'consecrated' ? '#c8c0a0' : '#c060ff') : s.state === 'sleeping' ? '#a8f0c8' : '#e8ffb0'; ctx.beginPath(); ctx.arc(w(s.x), w(s.z), 3, 0, 7); ctx.fill(); }
     for (const b of g.buildings) {
       if (b.dead || !this.shown(b)) continue;
       ctx.fillStyle = b.team === 0 ? '#e0453e' : '#4a86e8';
@@ -517,7 +571,7 @@ export class UI {
     this.mouse.down = false;
     if (e.button !== 0 || e.target !== this.canvas && !this.mouse.box) { $('box').style.display = 'none'; return; }
     if (this.mode?.type === 'place') { this.commitPlace(); return; }
-    if (this.mode?.type === 'amove') { this.command(e.clientX, e.clientY); this.cancelMode(); return; }
+    if (this.mode?.type === 'amove' || this.mode?.type === 'ritual') { this.command(e.clientX, e.clientY); this.cancelMode(); return; }
     if (this.mouse.box) { this.boxSelect(this.mouse.bx, this.mouse.by, e.clientX, e.clientY, e.shiftKey); $('box').style.display = 'none'; return; }
     const t = this.pick(e.clientX, e.clientY);
     const now = performance.now();
@@ -586,7 +640,7 @@ export class UI {
     }
   }
   tap(x, y) {
-    if (this.mode?.type === 'amove') { this.command(x, y); this.cancelMode(); return; }
+    if (this.mode?.type === 'amove' || this.mode?.type === 'ritual') { this.command(x, y); this.cancelMode(); return; }
     const t = this.pick(x, y);
     const own = this.ownUnits();
     if (t && t.team === TEAM.PLAYER) {

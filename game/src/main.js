@@ -62,6 +62,7 @@ async function boot() {
   const idol = await makeProp('stone_idol', S);
   idol.position.set(LAYOUT.idol[0], heightAt(...LAYOUT.idol) - 0.2, LAYOUT.idol[1]); idol.rotation.y = 0.5;
   scene.add(idol); props.push({ obj: idol, x: LAYOUT.idol[0], z: LAYOUT.idol[1], idol: true });
+  game.addSite({ st: 'idol', name: 'Old Idol', title: 'Four faces on the hill', x: LAYOUT.idol[0], z: LAYOUT.idol[1], radius: 3.6, state: 'sleeping', prop: idol });
 
   step(0.55, 'carving the clans');
   const jobs = [];
@@ -147,6 +148,9 @@ function frame(now) {
   const dt = Math.min(0.05, real);
   last = now;
   fpsAcc += real; fpsN++; if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  tick(dt, true);
+}
+function tick(dt, draw) {
   if (!game || !ui) return;
   for (let k = 0; k < SPEED; k++) {
     if (started) ai.update(dt);
@@ -161,6 +165,7 @@ function frame(now) {
     const near = g0 ? Math.max(0.25, 1 - Math.hypot(ui.target.x - g0.x, ui.target.y - g0.z) / 70) : 0.3;
     updateAudio(game.alive(0, (u) => u.anim.mode === 'dance').length, game.alive(0, (u) => u.anim.mode === 'rite').length, near);
   }
+  if (!draw) return;
   renderer.info.autoReset = false; renderer.info.reset();
   rig.render(camera, dt);
   const G = window.__GAME__;
@@ -202,9 +207,17 @@ function overlays(dt) {
     }
     if (sel.has(b) && b.rally && b.team === 0) fx.ring(b.rally.x, heightAt(b.rally.x, b.rally.z), b.rally.z, 0.6 + 0.15 * Math.sin(t * 5), 0xffe07a);
   }
-  for (const p of props) if (p.idol && p.obj.visible && Math.random() < 0.3) fx.sparkle(p.x + (Math.random() - 0.5) * 3, heightAt(p.x, p.z) + 5 + Math.random() * 2, p.z + (Math.random() - 0.5) * 3, 1, [0.62, 0.94, 0.78]);
+  for (const s of game.sites) {
+    if (s.dead || !ui.shown(s)) continue;
+    if (sel.has(s)) fx.ring(s.x, s.y, s.z, s.radius + 0.4, 0xe8ffb0);
+    if (s.st === 'idol' && Math.random() < (s.state === 'sleeping' ? 0.3 : 0.9)) fx.sparkle(s.x + (Math.random() - 0.5) * 3, s.y + 5 + Math.random() * 2, s.z + (Math.random() - 0.5) * 3, 1, s.state === 'awake' ? [0.9, 0.98, 0.7] : [0.62, 0.94, 0.78]);
+    if (s.st === 'mound' && s.state !== 'consecrated' && Math.random() < 0.25) fx.sparkle(s.x + (Math.random() - 0.5) * 4, s.y + 0.3, s.z + (Math.random() - 0.5) * 4, 1, [0.5, 0.3, 0.6]);
+  }
   fx.endOverlays();
 }
 
 requestAnimationFrame(frame);
+// a hidden tab gets no animation frames; with ?bg=1 the simulation keeps stepping at 10 Hz (remote checks, soak tests)
+// Chrome throttles hidden-tab timers to once a second, so each beat steps a whole second in ten fixed slices and draws once
+if (new URLSearchParams(location.search).has('bg')) setInterval(() => { if (document.hidden) { for (let k = 0; k < 10; k++) tick(0.1, k === 9); last = performance.now(); } }, 100);
 boot().catch((e) => { console.warn(e); msg.textContent = 'failed to load: ' + e.message; });

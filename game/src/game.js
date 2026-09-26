@@ -9,6 +9,7 @@ import { findPath, lineFree, nearestFree } from './path.js';
 import { makeUnitModel, makeBuildingModel } from './models.js';
 import { animate, animateDeath } from './anim.js';
 import { sfx } from './audio.js';
+import { RITUALS, canPerform, targetKind } from './rituals.js';
 
 let NEXT_ID = 1;
 const tmpV = new THREE.Vector3();
@@ -28,6 +29,9 @@ export class Game {
     this.stats = { unitsTrained: 0, kills: 0 };
     this.fogT = 0; this.objT = 0;
     this.circles = new Map();
+    this.sites = [];                   // idols, mounds, rings: selectable places with a state
+    this.reveals = [];                 // temporary vision: { x, z, r, t }
+    this.flags = {};                   // campaign / mission facts: leshyAppeased, leshyKilled, ...
   }
   on(ev, fn) { (this.listeners[ev] ||= []).push(fn); }
   emit(ev, ...a) { for (const f of this.listeners[ev] || []) f(...a); }
@@ -115,6 +119,17 @@ export class Game {
   alive(team, pred) { return this.units.filter((u) => !u.dead && (team === undefined || u.team === team) && (!pred || pred(u))); }
   aliveB(team, bt) { return this.buildings.filter((b) => !b.dead && b.team === team && (!bt || b.bt === bt)); }
   grodOf(team) { return this.buildings.find((b) => !b.dead && b.team === team && b.bt === 'grod' && b.built); }
+
+  /* ------------------------------------------------------------ sacred sites */
+  /** addSite({ st: 'idol' | 'mound' | 'ring', name, title, x, z, radius, state, prop }) */
+  addSite(o) {
+    const s = { id: NEXT_ID++, kind: 'site', team: TEAM.NEUTRAL, dead: false, radius: 3, state: 'sleeping', title: '', ...o };
+    s.y = heightAt(s.x, s.z);
+    this.sites.push(s);
+    return s;
+  }
+  setSiteState(s, state) { const prev = s.state; s.state = state; this.emit('siteState', s, prev); }
+  reveal(x, z, r, t = 15) { this.reveals.push({ x, z, r, t }); this.fogT = 0; }
   supplyCap(team) { return clamp(START.supply + this.aliveB(team, 'khata').filter((b) => b.built).length * START.supplyPerKhata, 0, START.supplyMax); }
   supplyUsed(team) {
     let s = 0;
@@ -129,7 +144,7 @@ export class Game {
       const dx = Math.max(Math.abs(u.x - t.x) - h, 0), dz = Math.max(Math.abs(u.z - t.z) - h, 0);
       return Math.max(0, Math.hypot(dx, dz) - 1.6);
     }
-    return Math.hypot(u.x - t.x, u.z - t.z) - t.radius;
+    return Math.hypot(u.x - t.x, u.z - t.z) - (t.radius || 0);
   }
   visibleTo(team, e) {
     if (team !== TEAM.PLAYER) return true;            // the AI does not cheat much, but it does see
@@ -170,6 +185,37 @@ export class Game {
       if (s) this.order(u, { type: 'rite', shrine: s });
     }
   }
+  /** Begin a ritual on a target (a site, the Leshy, a building, a corpse or a ground point). */
+  startRitual(u, ritual, target) {
+    const r = RITUALS[ritual];
+    const ok = canPerform(ritual, u, target); if (!ok.ok) return ok;
+    if (r.cost && !this.canAfford(u.team, r.cost)) return { ok: false, why: `Not enough ${this.teams[u.team].wind < r.cost.wind ? 'Wind' : 'Rain'} for the offering` };
+    if (r.cooldown && u.cooldowns?.[ritual] > this.time) return { ok: false, why: `${r.name} is not ready` };
+    this.order(u, { type: 'ritual', ritual, target, t: 0 });
+    return { ok: true };
+  }
+  completeRitual(u, o) {
+    const r = RITUALS[o.ritual], t = o.target;
+    if (r.cost) this.pay(u.team, r.cost);
+    if (r.cooldown) (u.cooldowns ||= {})[o.ritual] = this.time + r.cooldown;
+    const k = targetKind(t);
+    // default results; missions listen to 'ritual' and add their own
+    if (o.ritual === 'wake' && k === 'idol') { this.setSiteState(t, 'awake'); this.reveal(t.x, t.z, 34, 25); this.fx.puff(t.x, t.y + 6, t.z, 30, [0.62, 0.94, 0.78], 4, 0.7, 2.5); sfx('spirit', 0.8); if (u.team === TEAM.PLAYER) this.emit('toast', 'The idol wakes. For a while, the land is shown to you.'); }
+    else if (o.ritual === 'offer' && k === 'spirit') { t.appeased = true; t.appeasedBy = u.team; this.flags.leshyAppeased = true; this.fx.puff(t.x, t.y + 3, t.z, 40, [0.62, 0.94, 0.78], 5, 0.7, 2.5); sfx('spirit', 0.9); this.emit('leshyAppeased', t, u); if (u.team === TEAM.PLAYER) this.emit('toast', 'The Leshy accepts the offering. The forest lets you pass.'); }
+    else if (o.ritual === 'offer' && k === 'idol') { this.setSiteState(t, t.state === 'sleeping' ? 'blessed' : t.state); this.fx.puff(t.x, t.y + 4, t.z, 20, [0.9, 0.85, 0.6], 3, 0.6, 2); }
+    else if (o.ritual === 'offer' && k === 'ring') { this.setSiteState(t, 'appeased'); this.fx.puff(t.x, t.y + 2, t.z, 30, [0.62, 0.94, 0.78], 5, 0.7, 2.5); sfx('spirit', 0.6); }
+    else if (o.ritual === 'consecrate') {
+      if (k === 'mound') { this.setSiteState(t, 'consecrated'); this.fx.puff(t.x, t.y + 1.5, t.z, 30, [0.9, 0.9, 0.85], 4, 0.6, 2); sfx('objective', 0.5); }
+      else if (k === 'corpse') { this.removeCorpse?.(t); this.fx.puff(t.x, t.y + 0.5, t.z, 14, [0.9, 0.9, 0.85], 2, 0.6, 1.5); }
+      else if (k === 'building' && t.state) { const prev = t.state; t.state = null; this.emit('buildingState', t, prev); this.fx.puff(t.x, t.y + 3, t.z, 30, [0.6, 0.85, 1.0], 5, 0.7, 2.5); }
+      else if (k === 'idol') { this.setSiteState(t, 'blessed'); this.fx.puff(t.x, t.y + 4, t.z, 20, [0.9, 0.9, 0.85], 3, 0.6, 2); }
+    }
+    else if (o.ritual === 'ward') { this.addWard?.(t.x, t.z, r.radius, r.duration, u.team); }
+    else if (o.ritual === 'sight') { this.reveal(t.x, t.z, r.radius, r.duration); this.fx.puff(t.x, heightAt(t.x, t.z) + 2, t.z, 16, [0.8, 0.7, 1.0], 3, 0.5, 2); }
+    this.emit('ritual', { ritual: o.ritual, unit: u, target: t });
+    this.order(u, null);
+  }
+
   freeShrine(team, near) {
     let best = null, bd = 1e9;
     for (const b of this.aliveB(team, 'shrine')) {
@@ -520,6 +566,35 @@ export class Game {
       const t = this.teams[u.team]; t.rain += RAIN_PER_ZHERCA * dt; t.rainTotal += RAIN_PER_ZHERCA * dt;
       return;
     }
+    if (o.type === 'ritual') {
+      const r = RITUALS[o.ritual], t = o.target;
+      if (!t || t.dead) { this.order(u, null); return; }
+      if (o.ritual === 'mend' && t.hp >= t.maxHp - 0.5) { this.order(u, null); return; }
+      const d = t.kind === 'ground' ? Math.hypot(u.x - t.x, u.z - t.z) : this.distTo(u, t);
+      if (d > r.range) {
+        u.anim.mode = 'walk';
+        if (!o.spot) { const a = Math.atan2(u.z - t.z, u.x - t.x); const rr = (t.kind === 'building' ? t.def.size / 2 : (t.radius || 1)) + r.range * 0.6; o.spot = this.freeAlong(t.x, t.z, a, rr); }
+        if (this.goTo(u, o.spot[0], o.spot[1], dt, 0.3)) o.spot = null;
+        return;
+      }
+      u.speedNow = 0; u.path = null;
+      u.face = turn(u.face, Math.atan2(t.x - u.x, t.z - u.z), dt * 6);
+      if (u.interruptT > 0) { u.anim.mode = 'idle'; return; }
+      u.anim.mode = u.ut === 'vietra' ? 'dance' : 'rite';
+      if (r.continuous) {
+        // mend: pay Wind by the second, heal by the second, stop when whole
+        const team = this.teams[u.team];
+        if (team.wind < r.windPerSecond * dt) { u.anim.mode = 'idle'; if (u.team === TEAM.PLAYER && !o.warned) { o.warned = true; this.emit('toast', 'No Wind left to mend with'); } return; }
+        team.wind -= r.windPerSecond * dt;
+        t.hp = Math.min(t.maxHp, t.hp + t.maxHp * r.hpPerSecond * dt);
+        if (Math.random() < dt * 3) this.fx.mendMotes?.(u, t);
+        return;
+      }
+      o.t += dt;
+      if (Math.random() < dt * 4) this.fx.ritualMotes?.(u, t, o.ritual);
+      if (o.t >= r.dur) this.completeRitual(u, o);
+      return;
+    }
     if (o.type === 'build') {
       const b = o.site;
       if (!b || b.dead) { this.order(u, null); return; }
@@ -625,6 +700,7 @@ export class Game {
     };
     for (const u of this.units) if (!u.dead && u.team === TEAM.PLAYER) stamp(u.x, u.z, u.sight);
     for (const b of this.buildings) if (!b.dead && b.team === TEAM.PLAYER) stamp(b.x, b.z, b.sight + b.def.size / 2);
+    for (let i = this.reveals.length - 1; i >= 0; i--) { const r = this.reveals[i]; r.t -= this.fogT <= 0 ? 0.25 : 0; stamp(r.x, r.z, r.r); if (r.t <= 0) this.reveals.splice(i, 1); }
   }
   cellSeen(x, z) { const [i, j] = cellOf(x, z); return !!this.seen[j * G + i]; }
   cellVisible(x, z) { const [i, j] = cellOf(x, z); return !!this.vis[j * G + i]; }

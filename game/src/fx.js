@@ -213,6 +213,18 @@ export class FX {
     // a small dark raincloud gathering over the shrine
     if (Math.random() < 0.8) this.clouds.emit(x + (Math.random() - 0.5) * 3.6, y + 7.2 + Math.random() * 0.8, z + (Math.random() - 0.5) * 3.6, (Math.random() - 0.5) * 0.4, 0.05, (Math.random() - 0.5) * 0.4, 2.6, 3.6 + Math.random() * 1.8, 0.24, 0.28, 0.34, 0.85);
   }
+  /** motes streaming from a ritualist to what she is working on */
+  ritualMotes(u, t, ritual) {
+    const n = 3, col = ritual === 'offer' ? [0.9, 0.85, 0.55] : ritual === 'consecrate' ? [0.95, 0.95, 0.9] : ritual === 'wake' ? [0.62, 0.94, 0.78] : [0.7, 0.88, 1.0];
+    for (let i = 0; i < n; i++) {
+      const k = Math.random(), x = u.x + (t.x - u.x) * k, z = u.z + (t.z - u.z) * k, y = u.y + 1.2 + Math.sin(k * Math.PI) * 1.5;
+      this.glow.emit(x, y, z, (t.x - u.x) * 0.5, 0.6, (t.z - u.z) * 0.5, 0.9, 0.4, col[0], col[1], col[2], 0.85);
+    }
+  }
+  mendMotes(u, b) {
+    for (let i = 0; i < 2; i++) { const a = Math.random() * 6.28, r = b.def.size * 0.45; this.glow.emit(b.x + Math.cos(a) * r, b.y + 0.3 + Math.random() * b.def.height * 0.7, b.z + Math.sin(a) * r, -Math.cos(a) * 0.6, 0.8, -Math.sin(a) * 0.6, 1.2, 0.4, 0.55, 0.9, 0.5, 0.8); }
+    this.glow.emit(u.x, u.y + 1.5, u.z, (b.x - u.x) * 0.4, 0.8, (b.z - u.z) * 0.4, 1.0, 0.35, 0.7, 0.88, 1.0, 0.8);
+  }
   spiritAura(x, y, z) { if (Math.random() < 0.5) this.glow.emit(x + (Math.random() - 0.5) * 3, y + Math.random() * 4.5, z + (Math.random() - 0.5) * 3, 0, 0.4 + Math.random() * 0.4, 0, 2, 0.35, 0.62, 0.94, 0.78, 0.8); }
 
   update(dt, heightAt) {
