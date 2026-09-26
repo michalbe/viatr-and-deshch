@@ -1,9 +1,13 @@
 # Wind & Rain — the locked style
 
-> Chunky, hand-made early-2000s RTS models of a mythological early-medieval Slavic world: few, bold
-> parts with low segment counts (6–10 radial), oversized heads, hands, weapons and timber beams,
-> steep dominant thatch roofs, slightly uneven and hand-cut, smooth shading with flat per-part
-> colours (surfaces are applied at load time), readable in silhouette from a high RTS camera.
+> Early-2000s AAA RTS models (Warcraft III, classic WoW): low-poly lofted forms, 8–10 radial, with
+> ONE hand-painted diffuse atlas per character carrying all the detail: baked shading, seams, rivets,
+> mail rings, cloth folds, fur strokes, a face with eyes and brows. Exaggerated anatomy: shoulders
+> twice the hip width, forearms fatter than upper arms, fists and boots the size of the head, a
+> hunched barrel chest, a wide bent-knee stance, oversized weapons. Readable in silhouette and in
+> colour blocks from a high RTS camera. Buildings and props are painted too: a shared set of
+> repeating hand-painted textures (thatch, logs, planks, daub, dry stone, clan cloth, bark,
+> needles, leaves, water), UV-scaled to world size.
 
 ## Palette (use these exact hex values; name materials after a surfaces recipe where given)
 
@@ -49,8 +53,27 @@ Keep each asset to **at most 7 distinct materials** (draw calls are one per mate
 - Triangle budgets: characters ≤ 1,800, beasts ≤ 2,500, buildings ≤ 6,000, trees ≤ 300,
   rocks ≤ 200.
 - **No glyphs or text anywhere.** Carvings are geometry (notches, rings, stacked faces).
-- Smooth shading (default). No textures, no vertex colours, no files, no imports.
-- Material names from the contract list only: plaster | stone | timber | tile | metal | fabric | foliage | ground.
+- **Characters are painted.** Each character asset imports `../paint.js` (canvas brushes) and
+  `../charkit.js` (lofts + UV packing), lays out named regions on one 512² canvas atlas, paints
+  each with the brushes (`mail`, `iron`, `leather`, `cloth`, `fur`, `hair`, `wood`, `skin`, `face`,
+  `rivet`, `seam`, `band`, `stitches`…) and packs every part's UVs into a region. One
+  `MeshStandardMaterial` with that map (roughness 0.9, metalness 0: highlights are PAINTED, not
+  lit), so a unit is one draw call. No image files: the atlas is drawn at load time from a seed.
+- Team colour on painted characters: paint the region in greys (`GREY` from paint.js) and give the
+  part the `kit.team` material (colour `0xc0282d`); the loader multiplies it by the clan colour.
+- Lofts: `rings()` sections are authored top → bottom; u wraps once around with the seam at the
+  back, v = 1 at the top. The face sits at u = 0.5 of the head region.
+- **Buildings and props are painted from `../buildkit.js`.** `createBuildKit(THREE)` gives shared
+  materials by name (`thatch`, `thatchDark`, `log`, `planks`, `planksDark`, `beam`, `daub`, `stone`,
+  `stoneDark`, `team`, `linen`, `ochre`, `iron`, `bone`, `bark`, `birchBark`, `needles`, `leaves`,
+  `moss`, `blades`, `reed`, `water`, `glow`), each one 256² repeating canvas texture, plus
+  `box / log / beam / stake / roof / gable / horseHeads / banner / skull` and the character kit's
+  lofts. `add(parent, geo, name, { rep })` scales UVs to metres (or explicit repeats). A building is
+  one draw call per texture it uses. Team cloth is the `team` material (grey texture × clan colour).
+- The old material-name contract (plaster | stone | timber | …) and `surfaces.js` still apply to any
+  flat-coloured asset; `applySurfaces` leaves materials that already carry a map alone.
+- `game/workshop.html` is the model viewer: every unit, building and prop exactly as the game
+  builds them, with clan colour, the painted atlas, poses from `anim.js`, clay and wireframe modes.
 
 ## Articulation (anything that animates)
 
