@@ -295,10 +295,12 @@ def unwrap(R, me, face_region, face_part, parts):
         cx = sum(p.x for p in pts) / len(pts); cy = sum(p.y for p in pts) / len(pts); cz = sum(p.z for p in pts) / len(pts)
         raw = []
         if mode == 'cyl':        # around Z (up), v down the height; seam at the back (+Y in Blender = -Z in game)
+            poles = []
             for p in pts:
                 a = math.atan2(p.x - cx, -(p.y - cy))   # 0 at the front
                 raw.append(((a / math.tau + 0.5) % 1.0, -p.z))
-            raw = fix_seam(raw, loops, me)
+                poles.append(math.hypot(p.x - cx, p.y - cy) < 1e-3)
+            raw = fix_seam(raw, loops, me, poles)
         elif mode == 'front':    # planar from the front: u = x, v = -z
             for p in pts: raw.append((p.x, -p.z))
         elif mode == 'side':     # planar from the left: u = -y (front to the right), v = -z
@@ -306,10 +308,11 @@ def unwrap(R, me, face_region, face_part, parts):
         elif mode == 'top':      # planar from above: u = x, v = y
             for p in pts: raw.append((p.x, p.y))
         elif mode == 'polar':    # around Z, v = radius (centre at the top of the rect)
+            poles = []
             for p in pts:
                 a = math.atan2(p.x - cx, p.y - cy); rr = math.hypot(p.x - cx, p.y - cy)
-                raw.append(((a / math.tau + 0.5) % 1.0, rr))
-            raw = fix_seam(raw, loops, me)
+                raw.append(((a / math.tau + 0.5) % 1.0, rr)); poles.append(rr < 1e-3)
+            raw = fix_seam(raw, loops, me, poles)
         else:                    # 'planar': best axis by extent
             ex = [max(p[i] for p in pts) - min(p[i] for p in pts) for i in range(3)]
             drop = ex.index(min(ex))
@@ -328,23 +331,26 @@ def unwrap(R, me, face_region, face_part, parts):
             px = x + pad + fu * (w - 2 * pad); py = y + pad + fv * (h - 2 * pad)
             uv.data[li].uv = (px / A, 1 - py / A)
 
-def fix_seam(raw, loops, me):
-    """cylindrical u wraps at the seam: faces that straddle it are unwrapped to one side"""
+def fix_seam(raw, loops, me, poles=None):
+    """cylindrical u wraps at the seam: faces that straddle it are unwrapped to one side, and a
+    pole vertex (on the axis, where the angle is undefined) takes the mean u of its face"""
     out = list(raw)
+    poles = poles or [False] * len(raw)
+    loop_poly = {}
+    for p in me.polygons:
+        for li in p.loop_indices: loop_poly[li] = p.loop_total
     i = 0
     while i < len(loops):
-        fi_loops = []
-        # loops are grouped per face in order; collect this face's loops by polygon of the first
-        li = loops[i][0]
-        poly = me.loops[li]  # not directly useful; walk by polygon loop ranges
-        # find the polygon containing li
-        for p in me.polygons:
-            if p.loop_start <= li < p.loop_start + p.loop_total:
-                cnt = p.loop_total; break
-        us = [out[i + k][0] for k in range(cnt)]
-        if max(us) - min(us) > 0.5:
-            for k in range(cnt):
+        cnt = loop_poly[loops[i][0]]        # loops are grouped per face, in face order
+        ks = [k for k in range(cnt) if not poles[i + k]]
+        us = [out[i + k][0] for k in ks]
+        if us and max(us) - min(us) > 0.5:
+            for k in ks:
                 if out[i + k][0] < 0.5: out[i + k] = (out[i + k][0] + 1.0, out[i + k][1])
+            us = [out[i + k][0] for k in ks]
+        mean = sum(us) / len(us) if us else 0.5
+        for k in range(cnt):
+            if poles[i + k]: out[i + k] = (mean, out[i + k][1])
         i += cnt
     return out
 
