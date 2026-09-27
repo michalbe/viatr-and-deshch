@@ -1,0 +1,189 @@
+{
+ "name": "deer_rider",
+ "atlas": 512,
+ "seed": 71,
+ "height": 3.5542724765837193,
+ "top": 3.605121374130249,
+ "bottom": 0.05084889754652977,
+ "layout": {
+  "hide": [
+   0,
+   0,
+   256,
+   128
+  ],
+  "deerhead": [
+   256,
+   0,
+   128,
+   128
+  ],
+  "antler": [
+   384,
+   0,
+   64,
+   128
+  ],
+  "leg": [
+   448,
+   0,
+   64,
+   128
+  ],
+  "saddlecloth": [
+   0,
+   128,
+   128,
+   64
+  ],
+  "saddle": [
+   128,
+   128,
+   64,
+   64
+  ],
+  "rhead": [
+   192,
+   128,
+   128,
+   64
+  ],
+  "tunic": [
+   320,
+   128,
+   64,
+   64
+  ],
+  "rcloak": [
+   384,
+   128,
+   64,
+   64
+  ],
+  "fur": [
+   448,
+   128,
+   64,
+   64
+  ],
+  "rleather": [
+   0,
+   192,
+   64,
+   64
+  ],
+  "rhand": [
+   64,
+   192,
+   32,
+   32
+  ],
+  "spear": [
+   96,
+   192,
+   32,
+   128
+  ],
+  "iron": [
+   128,
+   192,
+   32,
+   32
+  ],
+  "tail": [
+   160,
+   192,
+   32,
+   64
+  ],
+  "bone": [
+   192,
+   192,
+   32,
+   32
+  ]
+ },
+ "team": [
+  "rcloak",
+  "saddlecloth"
+ ],
+ "clips": {
+  "idle": {
+   "duration": 4.0,
+   "loop": true
+  },
+  "fidget1": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget2": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget3": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "walk": {
+   "duration": 1.7916666666666667,
+   "loop": true
+  },
+  "attack": {
+   "duration": 1.0,
+   "loop": false
+  },
+  "death": {
+   "duration": 1.2083333333333333,
+   "loop": false
+  }
+ },
+ "kind": "quadruped",
+ "gait": "default",
+ "tris": 3377,
+ "bones": [
+  "body",
+  "neck",
+  "head",
+  "flLeg",
+  "flKnee",
+  "frLeg",
+  "frKnee",
+  "blLeg",
+  "blKnee",
+  "brLeg",
+  "brKnee",
+  "r_hips",
+  "r_spine",
+  "r_head",
+  "r_lShoulder",
+  "r_lElbow",
+  "r_rShoulder",
+  "r_rElbow"
+ ],
+ "display_height": 5.44,
+ "speed": 7.2,
+ "ut": "deer",
+ "deathDrop": 1.1,
+ "rest": {
+  "r_lShoulder": [
+   -0.9,
+   0,
+   0.15
+  ],
+  "r_lElbow": [
+   -0.9,
+   0,
+   0
+  ],
+  "r_rShoulder": [
+   -0.9,
+   0,
+   -0.2
+  ],
+  "r_rElbow": [
+   -0.9,
+   0,
+   0
+  ]
+ }
+}

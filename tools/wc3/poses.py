@@ -251,9 +251,9 @@ class HumanoidSampler:
     def clip_names(self, R):
         return ['idle', 'fidget1', 'fidget2', 'fidget3', 'walk', 'attack', 'death'] + self.extra
     def clip(self, R, name):
-        ut = self.ut; G = GAITS.get(R.gait, GAITS['default']); s = R.props.get('display_height', 3.0) / 1.0
-        # offsets in anim.js scale with display height; the mesh is built at real size, so scale by mesh/display
-        sc = R.height / max(0.1, R.props.get('display_height', 3.0))
+        ut = self.ut; G = GAITS.get(R.gait, GAITS['default'])
+        # offsets in anim.js scale with the display height; the mesh is built at real size, so use its own height
+        s = R.height; sc = 1.0
         def H(mode, **kw):
             def fn(t):
                 d, o = humanoid(ut, G, mode, t, R.props.get('display_height', 3.0) * sc, **kw(t) if callable(kw) else kw)
@@ -277,4 +277,69 @@ class HumanoidSampler:
             return 6.0, True, lambda t: humanoid(ut, G, 'rite', t, s * sc)
         if name == 'build':
             return 1 / 2.4 * 2, True, lambda t: humanoid(ut, G, 'build', t, s * sc)
+        raise KeyError(name)
+
+# ------------------------------------------------------------------ quadrupeds (bear, deer + rider)
+def quadruped(ut, mode, t, s, phase=0.0, attackT=0.0, attackDur=1.0, fidget_which=0, fidget_k=0.0, uid=0, death_drop=0.5):
+    P = Pose(); set_ = P.set; off = P.off
+    fast = ut == 'deer'
+    if mode == 'walk':
+        p = phase; sw = 0.75 if fast else 0.5
+        if fast:
+            set_('flLeg', sin(p) * sw); set_('frLeg', sin(p + 0.5) * sw)
+            set_('blLeg', sin(p + PI) * sw); set_('brLeg', sin(p + PI + 0.5) * sw)
+            set_('flKnee', mx(0, -cos(p)) * 0.9); set_('frKnee', mx(0, -cos(p + 0.5)) * 0.9)
+            set_('body', sin(p) * 0.08); off('body', abs(sin(p)) * 0.12 * s * 0.4)
+            set_('neck', -sin(p) * 0.12); set_('head', sin(p) * 0.1)
+        else:
+            set_('flLeg', sin(p) * sw); set_('brLeg', sin(p) * sw); set_('frLeg', -sin(p) * sw); set_('blLeg', -sin(p) * sw)
+            set_('flKnee', mx(0, -cos(p)) * 0.5); set_('brKnee', mx(0, -cos(p)) * 0.5); set_('frKnee', mx(0, cos(p)) * 0.5); set_('blKnee', mx(0, cos(p)) * 0.5)
+            set_('body', 0, 0, sin(p) * 0.06); off('body', abs(cos(p)) * 0.04 * s)
+            set_('head', 0, sin(p) * 0.15, 0); set_('neck', 0.05)
+        if fast:
+            set_('r_spine', 0.25); set_('r_rShoulder', -0.5); set_('r_rElbow', -0.8); set_('r_lShoulder', -0.6); set_('r_lElbow', -0.8)
+    elif mode == 'attack':
+        k = swing(attackT, attackDur)
+        if ut == 'bear':
+            set_('body', -k * 0.55); set_('flLeg', -k * 1.6); set_('frLeg', -k * 1.2); set_('blLeg', k * 0.45); set_('brLeg', k * 0.45)
+            set_('neck', k * 0.3); set_('head', k * 0.35)
+        else:
+            set_('neck', k * 0.5); set_('head', k * 0.4); set_('flLeg', -k * 0.5); set_('body', -k * 0.12)
+            set_('r_rShoulder', -0.6 - k * 1.2); set_('r_rElbow', -1.2 + k * 1.1); set_('r_spine', 0, 0.3 - k * 0.6, 0)
+    elif mode == 'death':
+        k = ease(min(1.0, t / 0.9))
+        set_('body', 0.1 * k, 0, 1.5 * k); off('body', -death_drop * k)
+        for n in ('flLeg', 'frLeg', 'blLeg', 'brLeg'): set_(n, 0.6 * k)
+        set_('neck', 0.3 * k); set_('head', 0.3 * k)
+        if fast: set_('r_spine', 0.5 * k); set_('r_head', 0.4 * k)
+    else:
+        b = t * 1.3 + uid; k = fidget_k; which = fidget_which
+        set_('body', sin(b) * 0.015); set_('neck', sin(b * 0.6) * 0.08); set_('head', sin(b * 0.4) * 0.1, sin(b * 0.23) * 0.4, 0)
+        if fast: set_('r_spine', sin(t * 1.2) * 0.04); set_('r_head', 0, sin(t * 0.4) * 0.4, 0); set_('r_rShoulder', -0.3); set_('r_rElbow', -0.6)
+        if k > 0:
+            if ut == 'bear':
+                if which == 0: set_('neck', -0.3 * k); set_('head', -0.4 * k, 0.3 * k, 0)
+                elif which == 1: set_('head', 0, sin(b * 9) * 0.25 * k, 0); set_('neck', 0.1 * k)
+                else: set_('flLeg', -0.5 * k); set_('flKnee', 0.6 * k); set_('body', -0.04 * k)
+            else:
+                if which == 0: set_('neck', 0.5 * k); set_('head', 0.3 * k)
+                elif which == 1: set_('frLeg', -0.4 * k); set_('frKnee', 0.9 * k)
+                else: set_('head', 0, 0.9 * k, 0); set_('neck', -0.1 * k)
+    return P.out()
+
+class QuadrupedSampler:
+    def __init__(self, ut): self.ut = ut
+    def clip_names(self, R): return ['idle', 'fidget1', 'fidget2', 'fidget3', 'walk', 'attack', 'death']
+    def clip(self, R, name):
+        ut = self.ut; s = R.height; drop = R.props.get('deathDrop', 0.5)
+        if name == 'idle': return 4.0, True, lambda t: quadruped(ut, 'idle', t, s)
+        if name.startswith('fidget'):
+            which = int(name[-1]) - 1
+            return 2.4, False, lambda t: quadruped(ut, 'idle', t, s, fidget_which=which, fidget_k=fidget_k(t, 0.4, 1.6))
+        if name == 'walk':
+            H = R.props.get('display_height', 3.0); rate = (1.6 if ut == 'deer' else 2.6) / max(1.0, H * 0.6)
+            period = math.tau / (rate * R.props.get('speed', 3.0))
+            return period, True, lambda t: quadruped(ut, 'walk', t, s, phase=t / period * math.tau)
+        if name == 'attack': return 1.0, False, lambda t: quadruped(ut, 'attack', t, s, attackT=t, attackDur=1.0)
+        if name == 'death': return 1.2, False, lambda t: quadruped(ut, 'death', t, s, death_drop=drop)
         raise KeyError(name)

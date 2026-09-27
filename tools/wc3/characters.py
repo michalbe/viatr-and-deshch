@@ -465,3 +465,112 @@ def vodnik():
     return R, []
 
 CHARACTERS.update({'upir': upir, 'upir_drowned': upir_drowned, 'striga': striga, 'leshonok': leshonok, 'vila': vila, 'rusalka': rusalka, 'vodnik': vodnik})
+
+# ------------------------------------------------------------------ quadrupeds
+def _quad_bones(R, body_head, body_tail, neck, neck_tail, head, head_tail, legs):
+    """legs: {name: (hip, knee, hoof)}"""
+    R.bone('body', body_head, body_tail)
+    R.bone('neck', neck, neck_tail, 'body')
+    R.bone('head', head, head_tail, 'neck')
+    for n, (hip, knee, hoof) in legs.items():
+        R.bone(n, hip, knee, 'body'); R.bone(n.replace('Leg', 'Knee'), knee, hoof, n)
+
+def bear():
+    R = Recipe('bear', atlas=512, seed=83); R.kind = 'quadruped'; R.skin_smooth = 0.6
+    R.props = {'display_height': 2.46, 'speed': 2.5, 'ut': 'bear', 'glow': ['glow'], 'deathDrop': 0.55}
+    L = R.region
+    L('fur', 0, 0, 256, 128, 'cyl'); L('bearhead', 256, 0, 128, 128, 'cyl', ['head', 'neck']); L('paw', 384, 0, 64, 64, 'top'); L('claw', 448, 0, 32, 64, 'cyl'); L('collar', 0, 128, 128, 32, 'cyl')
+    L('wood', 128, 128, 64, 64, 'cyl'); L('glow', 192, 128, 32, 32, 'front'); L('muzzle', 224, 128, 64, 64, 'cyl'); L('ear', 288, 128, 32, 32, 'front')
+    legs = {'flLeg': ((0.4, 1.08, 0.58), (0.4, 0.53, 0.62), (0.4, 0.02, 0.72)), 'frLeg': ((-0.4, 1.08, 0.58), (-0.4, 0.53, 0.62), (-0.4, 0.02, 0.72)),
+            'blLeg': ((0.4, 1.1, -0.68), (0.4, 0.55, -0.74), (0.4, 0.02, -0.6)), 'brLeg': ((-0.4, 1.1, -0.68), (-0.4, 0.55, -0.74), (-0.4, 0.02, -0.6))}
+    _quad_bones(R, (0, 1.12, -1.0), (0, 1.12, 0.7), (0, 1.24, 0.72), (0, 1.2, 1.08), (0, 1.2, 1.08), (0, 1.06, 1.5), legs)
+    R.uv_modes['fur'] = 'side'
+    # the barrel: a horizontal chain from tail to muzzle
+    spine = R.chain([((0, 1.17, -1.1), (0.3, 0.28)), ((0, 1.14, -0.85), (0.58, 0.55)), ((0, 1.12, -0.4), (0.64, 0.6)), ((0, 1.2, 0.1), (0.66, 0.7)), ((0, 1.28, 0.45), (0.66, 0.72)), ((0, 1.26, 0.7), (0.5, 0.56))], 'fur')
+    R.sk_verts[spine[2]]['root'] = True
+    neck = R.chain([((0, 1.24, 0.95), (0.38, 0.4)), ((0, 1.18, 1.2), (0.34, 0.3))], 'bearhead'); R.se(spine[-1], neck[0])
+    R.sk_verts[neck[0]]['region'] = 'fur'
+    muzzle = R.sv((0, 1.08, 1.5), (0.17, 0.15), 'muzzle'); R.se(neck[-1], muzzle)
+    for n, (hip, knee, hoof) in legs.items():
+        front = hip[2] > 0
+        h = R.sv(hip, (0.28, 0.3) if front else (0.3, 0.36), 'fur'); R.se(spine[4] if front else spine[1], h)
+        k = R.sv(knee, (0.19, 0.19), 'fur'); R.se(h, k)
+        a = R.sv((hip[0], 0.1, knee[2]), (0.2, 0.18), 'paw'); R.se(k, a)
+        toe = R.sv((hip[0], 0.04, knee[2] + 0.26), (0.18, 0.08), 'paw'); R.se(a, toe)
+        for i in range(4):
+            x = -0.13 + i * 0.087
+            R.add(tube('claw', [(hip[0] + x, 0.06, knee[2] + 0.36), (hip[0] + x * 1.15, -0.01, knee[2] + 0.5)], [0.03, 0.006], 'claw', segments=4, bind=n.replace('Leg', 'Knee')))
+    for s in (1, -1): R.add(sphere('ear', 0.1, 'ear', pos=(s * 0.25, 1.5, 1.12), scale=(1, 1, 0.6), segs=6, rings=4, bind='head'))
+    R.add(torus('collar', 0.41, 0.06, 'collar', pos=(0, 1.2, 0.92), rot=(0.2, 0, 0), bind='neck'))
+    R.add(sphere('knot', 0.1, 'collar', pos=(0, 1.62, 0.86), scale=(1, 0.7, 0.9), segs=6, rings=3, bind='neck'))
+    for s in (1, -1): R.add(sheet('collarTail', 0.08, 0.5, 'collar', pos=(s * 0.06, 1.6, 0.8), rot=(-1.2, 0, s * 0.3), sag=0.02, taper=-0.3, rows=3, cols=1, bind='neck'))
+    R.add(tube('cord', [(0, 0.8, 1.02), (0, 0.7, 1.06)], [0.012, 0.012], 'wood', segments=3, bind='neck', cap=False))
+    R.add(lathe('amulet', [(0.1, 0.02), (0.1, -0.02)], 8, 'wood', pos=(0, 0.64, 1.08), bind='neck', cap_top=True, cap_bottom=True))
+    R.add(sphere('amuletGlow', 0.03, 'glow', pos=(0, 0.64, 1.11), scale=(1, 1, 0.5), segs=5, rings=3, bind='neck'))
+    return R, ['collar']
+
+def deer_rider():
+    R = Recipe('deer_rider', atlas=512, seed=71); R.kind = 'quadruped'; R.skin_smooth = 0.5
+    R.props = {'display_height': 5.44, 'speed': 7.2, 'ut': 'deer', 'deathDrop': 1.1,
+               'rest': {'r_lShoulder': (-0.9, 0, 0.15), 'r_lElbow': (-0.9, 0, 0), 'r_rShoulder': (-0.9, 0, -0.2), 'r_rElbow': (-0.9, 0, 0)}}
+    L = R.region
+    L('hide', 0, 0, 256, 128, 'side'); L('deerhead', 256, 0, 128, 128, 'cyl', ['head', 'neck']); L('antler', 384, 0, 64, 128, 'cyl'); L('leg', 448, 0, 64, 128, 'cyl'); L('saddlecloth', 0, 128, 128, 64, 'planar')
+    L('saddle', 128, 128, 64, 64, 'top'); L('rhead', 192, 128, 128, 64, 'cyl', ['r_head']); L('tunic', 320, 128, 64, 64, 'cyl', ['r_hips', 'r_spine', 'r_lShoulder', 'r_rShoulder']); L('rcloak', 384, 128, 64, 64, 'planar')
+    L('fur', 448, 128, 64, 64, 'cyl'); L('rleather', 0, 192, 64, 64, 'cyl', ['r_hips', 'r_lElbow', 'r_rElbow']); L('rhand', 64, 192, 32, 32, 'cyl', ['r_lElbow', 'r_rElbow']); L('spear', 96, 192, 32, 128, 'cyl'); L('iron', 128, 192, 32, 32, 'planar')
+    L('tail', 160, 192, 32, 64, 'cyl'); L('bone', 192, 192, 32, 32, 'cyl')
+    legs = {'flLeg': ((0.26, 1.55, 0.72), (0.26, 0.95, 0.74), (0.26, 0.04, 0.8)), 'frLeg': ((-0.26, 1.55, 0.72), (-0.26, 0.95, 0.74), (-0.26, 0.04, 0.8)),
+            'blLeg': ((0.27, 1.7, -0.78), (0.27, 0.75, -1.0), (0.27, 0.04, -0.85)), 'brLeg': ((-0.27, 1.7, -0.78), (-0.27, 0.75, -1.0), (-0.27, 0.04, -0.85))}
+    _quad_bones(R, (0, 1.75, -1.0), (0, 1.75, 0.8), (0, 1.95, 0.85), (0, 2.5, 1.29), (0, 2.5, 1.29), (0, 2.4, 1.9), legs)
+    # the rider's bones hang off the deer's body
+    R.bone('r_hips', (0, 2.3, -0.05), (0, 2.42, -0.05), 'body')
+    R.bone('r_spine', (0, 2.42, -0.05), (0, 2.82, -0.03), 'r_hips')
+    R.bone('r_head', (0, 2.82, -0.03), (0, 3.1, -0.03), 'r_spine')
+    for s, p in ((1, 'l'), (-1, 'r')):
+        R.bone('r_' + p + 'Shoulder', (0.32 * s, 2.86, 0), (0.32 * s, 2.56, 0), 'r_spine')
+        R.bone('r_' + p + 'Elbow', (0.32 * s, 2.56, 0), (0.32 * s, 2.26, 0.01), 'r_' + p + 'Shoulder')
+    spine = R.chain([((0, 1.77, -1.15), (0.2, 0.22)), ((0, 1.8, -0.95), (0.4, 0.42)), ((0, 1.77, -0.5), (0.44, 0.46)), ((0, 1.75, 0.0), (0.42, 0.44)), ((0, 1.81, 0.5), (0.44, 0.5)), ((0, 1.85, 0.85), (0.38, 0.44))], 'hide')
+    R.sk_verts[spine[2]]['root'] = True
+    neck = R.chain([((0, 2.2, 1.0), (0.26, 0.3)), ((0, 2.5, 1.17), (0.2, 0.24)), ((0, 2.58, 1.31), (0.17, 0.18))], 'hide'); R.se(spine[-1], neck[0])
+    head = R.chain([((0, 2.58, 1.49), (0.19, 0.2)), ((0, 2.5, 1.75), (0.13, 0.14)), ((0, 2.42, 1.95), (0.1, 0.1))], 'deerhead'); R.se(neck[-1], head[0])
+    for n, (hip, knee, hoof) in legs.items():
+        front = hip[2] > 0
+        h = R.sv(hip, (0.16, 0.2) if front else (0.2, 0.26), 'leg'); R.se(spine[4] if front else spine[1], h)
+        k = R.sv(knee, (0.1, 0.1), 'leg'); R.se(h, k)
+        f = R.sv((hip[0], 0.3, knee[2] + (0.02 if front else 0.1)), (0.085, 0.085), 'leg'); R.se(k, f)
+        hf = R.sv(hoof, (0.1, 0.09), 'leg'); R.se(f, hf)
+    R.add(tube('tail', [(0, 1.95, -1.05), (0, 1.85, -1.25), (0, 1.69, -1.36)], [0.08, 0.06, 0.02], 'tail', segments=5, bind='body'))
+    for s in (1, -1):
+        R.add(plate('ear', [(-0.06, 0), (0.06, 0), (0.03, 0.3), (-0.03, 0.3)], 0.02, 'hide', pos=(s * 0.16, 2.64, 1.23), rot=(0.3, 0, -s * 1.1), bind='head'))
+        beam = [(s * 0.09, 2.65, 1.27), (s * 0.3, 2.88, 1.15), (s * 0.52, 3.1, 1.17), (s * 0.68, 3.3, 1.29), (s * 0.72, 3.48, 1.45), (s * 0.72, 3.6, 1.55)]
+        R.add(tube('beam', beam, [0.06, 0.052, 0.044, 0.036, 0.026, 0.008], 'antler', segments=5, bind='head'))
+        for i, t in [(0, (s * 0.22, 2.82, 1.61)), (1, (s * 0.36, 3.2, 1.43)), (2, (s * 0.5, 3.42, 1.23)), (3, (s * 0.9, 3.48, 1.19)), (3, (s * 0.58, 3.56, 1.37))]:
+            R.add(tube('tine', [beam[i], t], [0.03, 0.006], 'antler', segments=4, bind='head'))
+    # saddle cloth and saddle
+    for s in (1, -1): R.add(sheet('saddlecloth', 1.0, 0.7, 'saddlecloth', pos=(s * 0.47, 2.0, 0.3 * s), rot=(0, s * math.pi / 2, s * 0.15), sag=0, wave=0, taper=-0.1, rows=2, cols=5, bind='body'))
+    R.add(sphere('saddle', 0.42, 'saddle', pos=(0, 2.16, -0.04), scale=(0.75, 0.22, 1), segs=8, rings=4, bind='body'))
+    for s in (1, -1): R.add(tube('stirrup', [(s * 0.44, 1.85, 0.1), (s * 0.4, 1.45, 0.12)], [0.03, 0.03], 'saddle', segments=4, bind='body'))
+    # the rider: a second skin body hanging from the saddle
+    rh = R.sv((0, 2.3, -0.05), (0.22, 0.18), 'tunic', root=True)
+    rs = R.sv((0, 2.44, -0.04), (0.23, 0.18), 'tunic'); R.se(rh, rs)
+    rc = R.sv((0, 2.72, -0.02), (0.3, 0.22), 'tunic'); R.se(rs, rc)
+    rn = R.sv((0, 2.86, -0.02), (0.12, 0.1), 'tunic'); R.se(rc, rn)
+    for s in (1, -1):
+        sh = R.sv((0.32 * s, 2.86, 0), (0.1, 0.095), 'tunic'); R.se(rc, sh)
+        el = R.sv((0.32 * s, 2.56, 0), (0.09, 0.085), 'rleather'); R.se(sh, el)
+        hd = R.sv((0.32 * s, 2.28, 0.01), (0.09, 0.08), 'rhand'); R.se(el, hd)
+        th = R.sv((0.42 * s, 2.1, 0.3), (0.09, 0.09), 'tunic'); R.se(rh, th)
+        bt = R.sv((0.5 * s, 1.68, 0.12), (0.085, 0.08), 'rleather'); R.se(th, bt)
+        toe = R.sv((0.5 * s, 1.6, 0.26), (0.09, 0.05), 'rleather'); R.se(bt, toe)
+    R.add(sphere('rskull', 0.19, 'rhead', pos=(0, 3.0, -0.01), scale=(1, 1.1, 1), bind='r_head', squash=0.05))
+    R.add(lathe('rbeard', [(0.12, 0.0), (0.14, -0.08), (0.08, -0.2), (0.03, -0.26)], 7, 'fur', pos=(0, 2.84, 0.12), bind='r_head', taper_z=0.55, cap_top=True, cap_bottom=True))
+    R.add(lathe('rhat', [(0.02, 0.46), (0.15, 0.42), (0.2, 0.34), (0.2, 0.26), (0.19, 0.24)], 9, 'fur', pos=(0, 2.82, -0.01), bind='r_head', cap_top=True))
+    R.add(lathe('rcollar', [(0.2, 0.54), (0.32, 0.44), (0.3, 0.38)], 8, 'fur', pos=(0, 2.42, -0.04), bind='r_spine'))
+    R.add(sheet('rcloak', 0.5, 0.8, 'rcloak', pos=(0, 2.88, -0.24), rot=(0.1, math.pi, 0), sag=0.06, wave=0.02, taper=0.4, rows=4, cols=4, bind='r_spine'))
+    sp = lathe('spear', [(0.028, 1.3), (0.032, 0.0), (0.035, -0.6)], 6, 'spear', bind='r_rElbow', cap_top=True, cap_bottom=True)
+    sb = lathe('spearband', [(0.05, 1.36), (0.05, 1.26)], 6, 'fur', bind='r_rElbow')
+    sh_ = plate('spearhead', [(-0.06, 0), (0.06, 0), (0.03, 0.22), (0, 0.4), (-0.03, 0.22)], 0.03, 'iron', pos=(0, 1.36, 0), bind='r_rElbow')
+    for p in (sp, sb, sh_):
+        xform(p, rot=(-0.6, 0, 0), pos=(-0.32, 2.28, 0.03)); p.prop = True; R.add(p)
+    return R, ['rcloak', 'saddlecloth']
+
+CHARACTERS.update({'bear': bear, 'deer_rider': deer_rider})

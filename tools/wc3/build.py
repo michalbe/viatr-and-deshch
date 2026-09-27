@@ -17,7 +17,7 @@ def main():
     for n in names:
         try:
             R, team = characters.CHARACTERS[n]()
-            sampler = poses.HumanoidSampler(n, extra=R.props.get('extraClips', []))
+            sampler = poses.QuadrupedSampler(R.props.get('ut', n)) if R.kind == 'quadruped' else poses.HumanoidSampler(n, extra=R.props.get('extraClips', []))
             lib.build(R, sampler, out, team, R.props.get('glow', []))
             ok.append(n)
         except Exception:
