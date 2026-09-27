@@ -61,8 +61,8 @@ half if nothing goes wrong, which it will.
 | 14 | Combat model | **Done** | HP, damage, cooldown, range, speed, supply; a few multipliers (Bear vs buildings, Deer vs ritualists, Streletz vs buildings, the dead in darkness, civilians take ×0.4). |
 | 15 | Controls | **Done, plus** | Classic RTS, Cmd/Ctrl+click as command, groups, idle key, rally points, touch. Ritual targeting mode with hotkeys (N Wake, C Consecrate, F Offer, M Mend, R Ward, T Sight). |
 | 16 | Camera | **Done** | Fixed yaw; zoom tilts from top-down to ~34°, WC3-style. |
-| 17 | Visual direction | **Done** | WC3-era painted low-poly. 30 asset modules. |
-| 18 | Animation | **Procedural** | Dance, rite, build, walk, attack, idle, death, fall/rise for story units. No hand-keyed frames. |
+| 17 | Visual direction | **Done** | WC3-era painted low-poly. Characters are single welded rigged meshes built in Blender (`tools/wc3`, shipped as GLB); buildings, vegetation, the Ognik and the family cart are still code-built. |
+| 18 | Animation | **Skeletal clips** | Every GLB character has idle + three fidgets, walk, attack, death, and dance / rite / build where they apply, sampled from per-body gaits (a Vitez stomps, an Upir drags a leg, a Striga prowls, a Vila floats). Played with an AnimationMixer, cross-faded. |
 | 19 | Audio | **Done** | The economy is the soundtrack; combat, construction and thunder cues; raise/rumble/thunderclap added for the campaign. |
 | 20 | UI | **Done** | Resource bar with clock (☀/☾ when day/night is on), selection panel, objectives, minimap, toasts, dialogue box, mission stage screens, pause menu. |
 | 21 | Economy numbers | **Done** | As in the doc. |
@@ -144,8 +144,9 @@ saw Binding / unbound the spring (M3), Leshy pact / Vila friends (M4), rescued t
 - **Balance.** Wave sizes, timers, HP, ritual costs and the reserves handed out in Missions 4
   and 5 are single guesses.
 - **Voice and music.** Dialogue is text over a portrait. The soundtrack is still the economy.
-- **Hand-keyed animation.** Everything is procedural. The Vila and Rusalka use the Vietra's
-  dance; the Vodnik and the family cart have no bespoke motion.
+- **Hand-keyed animation.** The clips are sampled from procedural gaits, not keyed by an animator;
+  they read at RTS distance and would need an animator's pass for close-ups. The family cart is a
+  static prop that slides.
 - **Blueprint Phase G polish**: cinematic camera moves beyond focus-and-hold, weather-reactive
   music, a mission-select map, an ending card beyond the Zmey dialogue.
 - **Deferred creatures**: Mora and Bolotnik are not built; the Zmey exists only as a storm and
@@ -254,6 +255,8 @@ Storm: ×2.75 Rain under it. Water: rises ~0.045 m/s to +0.95 m, holds 60–120 
 - `game/src/rituals.js`, `game/src/construction.js` (Raise), `game/src/ai.js`, `game/src/ui.js`.
 - `game/src/terrain.js` — maps as data (`game/maps/*.js`), path grid, water line, fog.
 - `game/missions/index.js` + `m01`–`m05` — the campaign.
-- `game/assets/*.js` — 30 models; `game/paint.js`, `game/charkit.js`, `game/buildkit.js` — the kits.
+- `game/assets/*.js` — 30 code-built models; `game/paint.js`, `game/charkit.js`, `game/buildkit.js` — the kits.
+- `game/models/*.glb` + `.json` — the rigged characters; `game/skins/*.js` paint their atlases; `game/src/gltf-units.js` loads them.
+- `tools/wc3/` — the Blender pipeline: `lib.py` (skin body, parts, UV layout, rig, weights, AO bake, export), `poses.py` (the gaits), `characters.py` (recipes), `build.py`.
 - `game/workshop.html` — the model viewer. `STYLE.md` — the look.
 - `game-design-doc.md`, `WIND-AND-RAIN-CAMPAIGN-BLUEPRINT.md` — the design; `README.md` — how to play.
