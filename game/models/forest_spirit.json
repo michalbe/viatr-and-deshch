@@ -1,0 +1,128 @@
+{
+ "name": "forest_spirit",
+ "atlas": 512,
+ "seed": 113,
+ "height": 5.288886766880751,
+ "top": 5.272050380706787,
+ "bottom": -0.016836386173963547,
+ "layout": {
+  "bark": [
+   0,
+   0,
+   128,
+   256
+  ],
+  "wood": [
+   128,
+   0,
+   64,
+   256
+  ],
+  "moss": [
+   192,
+   0,
+   64,
+   64
+  ],
+  "mossdark": [
+   192,
+   64,
+   64,
+   64
+  ],
+  "glow": [
+   192,
+   128,
+   32,
+   32
+  ],
+  "core": [
+   224,
+   128,
+   32,
+   32
+  ],
+  "face": [
+   256,
+   0,
+   128,
+   128
+  ],
+  "stumptop": [
+   384,
+   0,
+   64,
+   64
+  ]
+ },
+ "team": [],
+ "clips": {
+  "idle": {
+   "duration": 4.0,
+   "loop": true
+  },
+  "fidget1": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget2": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget3": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "walk": {
+   "duration": 5.0,
+   "loop": true
+  },
+  "attack": {
+   "duration": 1.0,
+   "loop": false
+  },
+  "death": {
+   "duration": 1.2083333333333333,
+   "loop": false
+  }
+ },
+ "kind": "humanoid",
+ "gait": "spirit",
+ "tris": 3104,
+ "bones": [
+  "hips",
+  "spine",
+  "head",
+  "lShoulder",
+  "lElbow",
+  "lHip",
+  "lKnee",
+  "rShoulder",
+  "rElbow",
+  "rHip",
+  "rKnee"
+ ],
+ "display_height": 7.38,
+ "speed": 2.2,
+ "glow": [
+  "glow",
+  "core"
+ ],
+ "rest": {
+  "spine": [
+   0.25,
+   0,
+   0
+  ],
+  "lShoulder": [
+   0,
+   0,
+   0.1
+  ],
+  "rShoulder": [
+   0,
+   0,
+   -0.1
+  ]
+ }
+}

@@ -574,3 +574,61 @@ def deer_rider():
     return R, ['rcloak', 'saddlecloth']
 
 CHARACTERS.update({'bear': bear, 'deer_rider': deer_rider})
+
+# ------------------------------------------------------------------ the Leshy
+def forest_spirit():
+    R = Recipe('forest_spirit', atlas=512, seed=113); R.skin_smooth = 0.5
+    R.gait = 'spirit'; R.props = {'display_height': 7.38, 'speed': 2.2, 'glow': ['glow', 'core'], 'rest': {'spine': (0.25, 0, 0), 'lShoulder': (0, 0, 0.1), 'rShoulder': (0, 0, -0.1)}}
+    L = R.region
+    L('bark', 0, 0, 128, 256, 'cyl'); L('wood', 128, 0, 64, 256, 'cyl'); L('moss', 192, 0, 64, 64, 'cyl'); L('mossdark', 192, 64, 64, 64, 'cyl'); L('glow', 192, 128, 32, 32, 'front'); L('core', 224, 128, 32, 32, 'cyl')
+    L('face', 256, 0, 128, 128, 'cyl', ['head']); L('stumptop', 384, 0, 64, 64, 'top')
+    humanoid_bones(R, hips=(0, 2.05, 0), spine_top=(0, 3.45, 0.1), head=(0, 3.55, 0.15), head_top=(0, 4.2, 0.15), shoulder=(0.6, 3.4, 0), elbow=(0.72, 2.4, 0.06), hand=(0.72, 1.4, 0.26), hip=(0.28, 1.95, 0), knee=(0.34, 1.0, 0.1), foot=(0.34, 0.1, 0.0))
+    hips = R.sv((0, 2.05, 0), (0.44, 0.38), 'bark', root=True)
+    mid = R.sv((0, 2.6, 0.05), (0.4, 0.34), 'bark'); R.se(hips, mid)
+    chest = R.sv((0, 3.15, 0.05), (0.62, 0.44), 'bark'); R.se(mid, chest)
+    neck = R.sv((0, 3.45, 0.1), (0.3, 0.28), 'bark'); R.se(chest, neck)
+    for s in (1, -1):
+        b = ('l' if s > 0 else 'r')
+        sh = R.sv((0.6 * s, 3.4, 0), (0.15, 0.14), 'bark'); R.se(chest, sh)
+        el = R.sv((0.72 * s, 2.4, 0.06), (0.17, 0.16), 'wood'); R.se(sh, el)
+        wr = R.sv((0.72 * s, 1.55, 0.22), (0.12, 0.11), 'bark'); R.se(el, wr)
+        hd = R.sv((0.72 * s, 1.4, 0.28), (0.13, 0.1), 'wood'); R.se(wr, hd)
+        for i in range(4):
+            a = -0.6 + i * 0.4
+            R.add(tube('claw', [(0.72 * s, 1.4, 0.3), (0.72 * s + math.sin(a) * 0.25, 1.05, 0.44 + math.cos(a) * 0.18), (0.72 * s + math.sin(a) * 0.3, 0.75, 0.55 + math.cos(a) * 0.2)], [0.05, 0.035, 0.005], 'wood', segments=5, bind=b + 'Elbow'))
+        R.add(sphere('shoulderMoss', 0.22, 'moss', pos=(0.62 * s, 3.5, -0.02), scale=(1, 0.6, 0.9), segs=7, rings=3, bind=b + 'Shoulder'))
+        R.add(sphere('elbowMoss', 0.14, 'moss', pos=(0.77 * s, 2.05, 0.08), scale=(1, 1.6, 1), segs=6, rings=4, bind=b + 'Elbow'))
+        hp = R.sv((0.28 * s, 1.95, 0), (0.17, 0.16), 'bark'); R.se(hips, hp)
+        kn = R.sv((0.34 * s, 1.0, 0.1), (0.2, 0.19), 'wood'); R.se(hp, kn)
+        an = R.sv((0.34 * s, 0.2, 0.0), (0.17, 0.16), 'bark'); R.se(kn, an)
+        for i in range(5):
+            a = -1.2 + i * 0.6
+            R.add(tube('root', [(0.34 * s, 0.2, 0.0), (0.34 * s + math.sin(a) * 0.35, 0.04, math.cos(a) * 0.35), (0.34 * s + math.sin(a) * 0.6, 0.0, math.cos(a) * 0.6)], [0.1, 0.06, 0.005], 'bark', segments=5, bind=b + 'Knee'))
+        R.add(sphere('kneeMoss', 0.16, 'moss', pos=(0.38 * s, 0.72, 0.2), scale=(1, 1.3, 0.9), segs=6, rings=3, bind=b + 'Knee'))
+    # bark strands twisting up the torso, moss and roots hanging from the hips
+    for k in range(7):
+        a = k / 7 * math.tau
+        p0 = (math.sin(a) * 0.35, 2.25, math.cos(a) * 0.3); p1 = (math.sin(a + 0.5) * 0.6, 2.95, math.cos(a + 0.5) * 0.46); p2 = (math.sin(a + 0.9) * 0.45, 3.5, math.cos(a + 0.9) * 0.34)
+        R.add(tube('strand%d' % k, [p0, p1, p2], [0.1, 0.12, 0.09], 'bark', segments=5, bind='spine'))
+        R.add(sphere('knot%d' % k, 0.12, 'bark', pos=p1, segs=5, rings=3, bind='spine'))
+    for i in range(8):
+        a = i / 8 * math.tau
+        R.add(tube('hiproot%d' % i, [(math.sin(a) * 0.36, 2.05, math.cos(a) * 0.3), (math.sin(a) * 0.5, 1.25 - (i % 3) * 0.2, math.cos(a) * 0.42)], [0.11, 0.005], 'moss' if i % 2 else 'bark', segments=5, bind='hips'))
+    R.add(sphere('core', 0.24, 'core', pos=(0, 2.9, 0.42), segs=7, rings=4, bind='spine'))
+    R.add(sphere('crown', 0.62, 'bark', pos=(0, 3.45, 0.1), scale=(1, 0.35, 0.7), segs=8, rings=4, bind='spine'))
+    R.add(sphere('crownMoss', 0.5, 'moss', pos=(0.1, 3.58, 0.05), scale=(1, 0.28, 0.72), segs=8, rings=3, bind='spine'))
+    # the stump head, glowing eyes, antlers of dead wood
+    R.add(lathe('stump', [(0.34, 0.63), (0.32, 0.3), (0.28, 0.0)], 9, 'face', pos=(0, 3.55, 0.15), bind='head', cap_bottom=True))
+    R.add(lathe('stumptop', [(0.005, 0.64), (0.33, 0.63)], 9, 'stumptop', pos=(0, 3.55, 0.15), bind='head', cap_top=True))
+    for s in (1, -1): R.add(sphere('eye', 0.09, 'glow', pos=(s * 0.1, 3.91, 0.45), scale=(1, 0.55, 0.5), segs=6, rings=3, bind='head'))
+    for i in range(4):
+        R.add(tube('beardroot%d' % i, [(-0.15 + i * 0.1, 3.73, 0.45), (-0.2 + i * 0.13, 3.2 - (i % 2) * 0.2, 0.51)], [0.06, 0.005], 'moss', segments=4, bind='head'))
+    for s in (1, -1):
+        b0 = (s * 0.16, 4.13, 0.15); b1 = (s * 0.42, 4.53, 0.03); b2 = (s * 0.78, 4.77, 0.13); b3 = (s * 0.95, 5.05, 0.27); b4 = (s * 1.0, 5.27, 0.35)
+        R.add(tube('antler', [b0, b1, b2, b3, b4], [0.11, 0.085, 0.065, 0.045, 0.006], 'wood', segments=6, bind='head'))
+        for i, (frm, to) in enumerate([(b1, (s * 0.36, 5.05, 0.23)), (b1, (s * 0.55, 4.7, 0.45)), (b2, (s * 1.18, 4.85, -0.05)), (b2, (s * 0.7, 5.1, -0.05)), (b0, (s * 0.26, 4.53, 0.49))]):
+            R.add(tube('tine%d' % i, [frm, to], [0.05, 0.006], 'wood', segments=4, bind='head'))
+        R.add(sphere('antlerMoss', 0.1, 'moss', pos=(b1[0] * 0.9, b1[1] - 0.05, b1[2]), scale=(1, 0.6, 1), segs=5, rings=3, bind='head'))
+    return R, []
+
+CHARACTERS.update({'forest_spirit': forest_spirit})
