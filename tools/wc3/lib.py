@@ -72,15 +72,21 @@ class Recipe:
     def add(self, part): self.parts.append(part); return part
 
 # ------------------------------------------------------------------ geometry makers (Three coords in, Blender coords stored)
-def lathe(name, profile, segments, region, pos=(0, 0, 0), bind='auto', bones=None, cap_top=False, cap_bottom=False, uv='cyl', taper_z=1.0, sweep=None):
+def lathe(name, profile, segments, region, pos=(0, 0, 0), bind='auto', bones=None, cap_top=False, cap_bottom=False, uv='cyl', taper_z=1.0, sweep=None, flute=None):
     """profile: [(radius, y), ...] from top to bottom, revolved around the Y axis at pos.
-    taper_z squashes the ring front-to-back; sweep(y) -> (dx, dz) shifts a ring."""
+    taper_z squashes the ring front-to-back; sweep(y) -> (dx, dz) shifts a ring; flute=(k, amp)
+    ripples the radius k times around, growing toward the hem."""
     verts, faces = [], []
+    y0, y1 = profile[0][1], profile[-1][1]
     for (r, y) in profile:
         dx, dz = sweep(y) if sweep else (0, 0)
         for i in range(segments):
             a = i / segments * math.tau
-            verts.append(T2B((pos[0] + math.cos(a) * r + dx, pos[1] + y, pos[2] + math.sin(a) * r * taper_z + dz)))
+            f = 1.0
+            if flute:
+                k, amp = flute; t = (y - y0) / (y1 - y0) if y1 != y0 else 1
+                f = 1 + amp * t * math.sin(k * a)
+            verts.append(T2B((pos[0] + math.cos(a) * r * f + dx, pos[1] + y, pos[2] + math.sin(a) * r * f * taper_z + dz)))
     n = segments
     for j in range(len(profile) - 1):
         for i in range(n):
@@ -88,6 +94,23 @@ def lathe(name, profile, segments, region, pos=(0, 0, 0), bind='auto', bones=Non
             faces.append([a, b, b + n, a + n])
     if cap_top: faces.append(list(range(n))[::-1])
     if cap_bottom: base = (len(profile) - 1) * n; faces.append([base + i for i in range(n)])
+    return Part(name, verts, faces, region, bind, bones, uv)
+
+def torus(name, R_, r, region, pos=(0, 0, 0), rot=(0, 0, 0), segs=12, sides=5, bind='auto', bones=None, uv='cyl'):
+    """a ring lying in the XZ plane (Three) at pos, then rotated by a Three euler"""
+    verts, faces = [], []
+    Rm = rotT2B(*rot)
+    for i in range(segs):
+        a = i / segs * math.tau
+        for j in range(sides):
+            b = j / sides * math.tau
+            x = (R_ + r * math.cos(b)) * math.cos(a); z = (R_ + r * math.cos(b)) * math.sin(a); y = r * math.sin(b)
+            verts.append(T2B_apply(Rm, (x, y, z), pos))
+    for i in range(segs):
+        for j in range(sides):
+            a, b = i * sides + j, i * sides + (j + 1) % sides
+            c, d = ((i + 1) % segs) * sides + j, ((i + 1) % segs) * sides + (j + 1) % sides
+            faces.append([a, c, d, b])
     return Part(name, verts, faces, region, bind, bones, uv)
 
 def box(name, size, region, pos=(0, 0, 0), rot=(0, 0, 0), bind='auto', bones=None, uv='planar'):
@@ -418,9 +441,14 @@ def bake_clips(R, ao, sampler, fps=24):
         if hasattr(act, 'slots') and ad.action_slot is None:
             ad.action_slot = act.slots.new(id_type='OBJECT', name=ao.name)
         nframes = max(2, int(round(dur * fps)))
+        rest = R.props.get('rest', {})
         for f in range(nframes + 1):
             t = f / fps
             deltas, offsets = fn(min(t, dur))
+            if rest:
+                deltas = dict(deltas)
+                for n, r in rest.items():
+                    d = deltas.get(n, (0, 0, 0)); deltas[n] = (d[0] + r[0], d[1] + r[1], d[2] + r[2])
             apply_pose(R, ao, deltas, offsets, f)
         ad.action = None
         tr = ad.nla_tracks.new(); tr.name = clip
@@ -429,7 +457,7 @@ def bake_clips(R, ao, sampler, fps=24):
     return clips
 
 # ------------------------------------------------------------------ colour attribute: AO + team mask
-def bake_ao_and_mask(R, ob, face_region, team_regions, samples=24, distance=0.6):
+def bake_ao_and_mask(R, ob, face_region, team_regions, glow_regions=(), samples=24, distance=0.6):
     me = ob.data
     col = me.color_attributes.new('Color', 'FLOAT_COLOR', 'CORNER')
     me.color_attributes.active_color = col
@@ -449,10 +477,11 @@ def bake_ao_and_mask(R, ob, face_region, team_regions, samples=24, distance=0.6)
     # AO is soft and lifted (WC3 textures carry only a hint of it); the team mask rides in green
     for p in me.polygons:
         team = 1.0 if face_region[p.index] in team_regions else 0.0
+        glow = 1.0 if face_region[p.index] in glow_regions else 0.0
         for li in p.loop_indices:
             a = ao_vals[li]
             a = 0.55 + 0.45 * min(1.0, a * 1.15)
-            col.data[li].color = (a, team, 1.0, 1.0)
+            col.data[li].color = (a, team, glow, 1.0)
 
 # ------------------------------------------------------------------ export
 def export(R, ob, ao, clips, out_dir, team_regions):
@@ -475,10 +504,10 @@ def export(R, ob, ao, clips, out_dir, team_regions):
     print(f'exported {glb}: {meta["tris"]} tris, {len(R.bone_order)} bones, clips {list(clips)}')
     return meta
 
-def build(R, sampler, out_dir, team_regions):
+def build(R, sampler, out_dir, team_regions, glow_regions=()):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     ob, weights, face_region = assemble(R)
     ao = build_rig(R, ob, weights)
-    bake_ao_and_mask(R, ob, face_region, set(team_regions))
+    bake_ao_and_mask(R, ob, face_region, set(team_regions), set(glow_regions))
     clips = bake_clips(R, ao, sampler)
     return export(R, ob, ao, clips, out_dir, set(team_regions))

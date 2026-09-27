@@ -1,0 +1,112 @@
+{
+ "name": "rusalka",
+ "atlas": 512,
+ "seed": 197,
+ "height": 1.8024713040795177,
+ "top": 1.7999999523162842,
+ "bottom": -0.0024713517632335424,
+ "layout": {
+  "head": [
+   0,
+   0,
+   256,
+   128
+  ],
+  "shift": [
+   256,
+   0,
+   256,
+   128
+  ],
+  "hair": [
+   0,
+   128,
+   128,
+   128
+  ],
+  "skin": [
+   128,
+   128,
+   64,
+   64
+  ]
+ },
+ "team": [],
+ "clips": {
+  "idle": {
+   "duration": 4.0,
+   "loop": true
+  },
+  "fidget1": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget2": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "fidget3": {
+   "duration": 2.4166666666666665,
+   "loop": false
+  },
+  "walk": {
+   "duration": 3.0416666666666665,
+   "loop": true
+  },
+  "attack": {
+   "duration": 1.0,
+   "loop": false
+  },
+  "death": {
+   "duration": 1.2083333333333333,
+   "loop": false
+  },
+  "dance": {
+   "duration": 4.041666666666667,
+   "loop": true
+  }
+ },
+ "kind": "humanoid",
+ "gait": "rusalka",
+ "tris": 1610,
+ "bones": [
+  "hips",
+  "spine",
+  "head",
+  "lShoulder",
+  "lElbow",
+  "lHip",
+  "lKnee",
+  "rShoulder",
+  "rElbow",
+  "rHip",
+  "rKnee"
+ ],
+ "display_height": 2.9,
+ "speed": 3.0,
+ "extraClips": [
+  "dance"
+ ],
+ "rest": {
+  "lShoulder": [
+   -0.3,
+   0,
+   0.6
+  ],
+  "rShoulder": [
+   -0.3,
+   0,
+   -0.6
+  ],
+  "lElbow": [
+   -0.7,
+   0,
+   0
+  ],
+  "rElbow": [
+   -0.7,
+   0,
+   0
+  ]
+ }
+}

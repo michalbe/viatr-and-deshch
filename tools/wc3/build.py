@@ -18,7 +18,7 @@ def main():
         try:
             R, team = characters.CHARACTERS[n]()
             sampler = poses.HumanoidSampler(n, extra=R.props.get('extraClips', []))
-            lib.build(R, sampler, out, team)
+            lib.build(R, sampler, out, team, R.props.get('glow', []))
             ok.append(n)
         except Exception:
             traceback.print_exc()

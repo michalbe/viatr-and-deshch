@@ -43,13 +43,16 @@ function template(asset) {
 function materialFor(tpl, team) {
   if (tpl.mats.has(team)) return tpl.mats.get(team);
   const col = new THREE.Color(TEAM_COLOR[team] ?? 0x888888);
-  const mat = new THREE.MeshStandardMaterial({ map: tpl.tex, vertexColors: true, roughness: 0.9, metalness: 0 });
+  const op = tpl.meta.opacity ?? 1;
+  const mat = new THREE.MeshStandardMaterial({ map: tpl.tex, vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, transparent: op < 1, opacity: op });   // cloth sheets and ribbons show both faces
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.teamColor = { value: col };
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', 'uniform vec3 teamColor;\n#include <common>')
       // r: baked occlusion, g: team mask over grey paint
-      .replace('#include <color_fragment>', '#if defined( USE_COLOR_ALPHA ) || defined( USE_COLOR )\n\tdiffuseColor.rgb *= vColor.r;\n\tdiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * teamColor, vColor.g);\n#endif');
+      .replace('#include <color_fragment>', '#if defined( USE_COLOR_ALPHA ) || defined( USE_COLOR )\n\tdiffuseColor.rgb *= vColor.r;\n\tdiffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * teamColor, vColor.g);\n#endif')
+      // b: painted glow (eyes, embers, the Leshy's core)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#if defined( USE_COLOR_ALPHA ) || defined( USE_COLOR )\n\ttotalEmissiveRadiance += diffuseColor.rgb * vColor.b * 2.0;\n#endif');
   };
   mat.customProgramCacheKey = () => 'wc3-team';
   // the workshop clones materials for its surface modes; the hooks must survive that
