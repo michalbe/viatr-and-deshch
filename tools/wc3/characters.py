@@ -476,7 +476,7 @@ def _quad_bones(R, body_head, body_tail, neck, neck_tail, head, head_tail, legs)
         R.bone(n, hip, knee, 'body'); R.bone(n.replace('Leg', 'Knee'), knee, hoof, n)
 
 def bear():
-    R = Recipe('bear', atlas=512, seed=83); R.kind = 'quadruped'; R.skin_smooth = 0.6
+    R = Recipe('bear', atlas=512, seed=83); R.kind = 'quadruped'; R.skin_smooth = 0.6; R.sub = 2; R.decimate = 0.38
     R.props = {'display_height': 2.46, 'speed': 2.5, 'ut': 'bear', 'glow': ['glow'], 'deathDrop': 0.55}
     L = R.region
     L('fur', 0, 0, 256, 128, 'cyl'); L('bearhead', 256, 0, 128, 128, 'cyl', ['head', 'neck']); L('paw', 384, 0, 64, 64, 'top'); L('claw', 448, 0, 32, 64, 'cyl'); L('collar', 0, 128, 128, 32, 'cyl')
@@ -484,10 +484,18 @@ def bear():
     legs = {'flLeg': ((0.4, 1.08, 0.58), (0.4, 0.53, 0.62), (0.4, 0.02, 0.72)), 'frLeg': ((-0.4, 1.08, 0.58), (-0.4, 0.53, 0.62), (-0.4, 0.02, 0.72)),
             'blLeg': ((0.4, 1.1, -0.68), (0.4, 0.55, -0.74), (0.4, 0.02, -0.6)), 'brLeg': ((-0.4, 1.1, -0.68), (-0.4, 0.55, -0.74), (-0.4, 0.02, -0.6))}
     _quad_bones(R, (0, 1.12, -1.0), (0, 1.12, 0.7), (0, 1.24, 0.72), (0, 1.2, 1.08), (0, 1.2, 1.08), (0, 1.06, 1.5), legs)
-    R.uv_modes['fur'] = 'side'
-    # the barrel: a horizontal chain from tail to muzzle
-    spine = R.chain([((0, 1.17, -1.1), (0.3, 0.28)), ((0, 1.14, -0.85), (0.58, 0.55)), ((0, 1.12, -0.4), (0.64, 0.6)), ((0, 1.2, 0.1), (0.66, 0.7)), ((0, 1.28, 0.45), (0.66, 0.72)), ((0, 1.26, 0.7), (0.5, 0.56))], 'fur')
-    R.sk_verts[spine[2]]['root'] = True
+    # the barrel: a horizontal chain from tail to muzzle, rings closer than their radius so the
+    # skin loft stays round
+    spine = R.chain([((0, 1.17, -1.1), (0.3, 0.28)), ((0, 1.14, -0.85), (0.56, 0.52)), ((0, 1.13, -0.62), (0.63, 0.58)), ((0, 1.12, -0.4), (0.64, 0.6)), ((0, 1.15, -0.15), (0.65, 0.64)), ((0, 1.2, 0.1), (0.66, 0.7)), ((0, 1.25, 0.3), (0.66, 0.72)), ((0, 1.28, 0.45), (0.65, 0.7)), ((0, 1.26, 0.7), (0.5, 0.56))], 'fur')
+    R.sk_verts[spine[3]]['root'] = True
+    # shaggy tufts along the belly and flanks, pointing down and back, and a ridge down the spine
+    for i in range(5):
+        for s in (1, -1):
+            R.add(tube('tuft', [(s * 0.5, 0.92, -0.62 + i * 0.28), (s * 0.56, 0.62, -0.7 + i * 0.28), (s * 0.58, 0.5, -0.74 + i * 0.28)], [0.13, 0.07, 0.01], 'fur', segments=5, bind='body'))
+    for i in range(4):
+        R.add(tube('ridge', [(0, 1.72 - i * 0.06, 0.25 - i * 0.28), (0, 1.8 - i * 0.06, 0.05 - i * 0.28), (0, 1.78 - i * 0.06, -0.08 - i * 0.28)], [0.14, 0.08, 0.01], 'fur', segments=5, bind='body'))
+    for s in (1, -1):
+        R.add(tube('ruff', [(s * 0.42, 1.35, 0.7), (s * 0.55, 1.05, 0.6), (s * 0.5, 0.9, 0.55)], [0.14, 0.08, 0.01], 'fur', segments=5, bind='neck'))
     neck = R.chain([((0, 1.24, 0.95), (0.38, 0.4)), ((0, 1.18, 1.2), (0.34, 0.3))], 'bearhead'); R.se(spine[-1], neck[0])
     R.sk_verts[neck[0]]['region'] = 'fur'
     muzzle = R.sv((0, 1.08, 1.5), (0.17, 0.15), 'muzzle'); R.se(neck[-1], muzzle)
@@ -510,7 +518,7 @@ def bear():
     return R, ['collar']
 
 def deer_rider():
-    R = Recipe('deer_rider', atlas=512, seed=71); R.kind = 'quadruped'; R.skin_smooth = 0.5
+    R = Recipe('deer_rider', atlas=512, seed=71); R.kind = 'quadruped'; R.skin_smooth = 0.5; R.sub = 2; R.decimate = 0.4
     R.props = {'display_height': 5.44, 'speed': 7.2, 'ut': 'deer', 'deathDrop': 1.1,
                'rest': {'r_lShoulder': (-0.9, 0, 0.15), 'r_lElbow': (-0.9, 0, 0), 'r_rShoulder': (-0.9, 0, -0.2), 'r_rElbow': (-0.9, 0, 0)}}
     L = R.region

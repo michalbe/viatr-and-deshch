@@ -49,6 +49,7 @@ class Recipe:
         self.kind = 'humanoid'
         self.clips = None           # None = the standard set for the kind
         self.sub = 1
+        self.decimate = 0             # >0: collapse ratio applied after subdivision (fat bodies use sub=2 + decimate)
         self.skin_smooth = 0.4
         self.region_bones = {}      # region -> bone whitelist for auto binding
         self.props = {}             # extra json metadata
@@ -216,6 +217,9 @@ def build_skin_body(R):
     sub = ob.modifiers.new('Sub', 'SUBSURF'); sub.levels = R.sub; sub.render_levels = R.sub
     bpy.ops.object.modifier_apply(modifier='Skin')
     if R.sub > 0: bpy.ops.object.modifier_apply(modifier='Sub')
+    if R.decimate:
+        dec = ob.modifiers.new('Dec', 'DECIMATE'); dec.ratio = R.decimate; dec.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier='Dec')
     verts = [v.co.copy() for v in me.vertices]
     faces = [list(p.vertices) for p in me.polygons]
     # region per face: the nearest skeleton segment's far vertex region
@@ -315,9 +319,12 @@ def unwrap(R, me, face_region, face_part, parts):
         us = [r[0] for r in raw]; vs = [r[1] for r in raw]
         u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
         du = (u1 - u0) or 1; dv = (v1 - v0) or 1
+        # around-the-axis modes keep the angle absolute (front stays at u = 0.5 where the face is
+        # painted); only the seam overhang is squeezed back into the rect
+        wrap = mode in ('cyl', 'polar')
         x, y, w, h = rect; pad = 2.5
         for (li, _), (u, v) in zip(loops, raw):
-            fu = (u - u0) / du; fv = (v - v0) / dv
+            fu = (u / max(1.0, u1)) if wrap else (u - u0) / du; fv = (v - v0) / dv
             px = x + pad + fu * (w - 2 * pad); py = y + pad + fv * (h - 2 * pad)
             uv.data[li].uv = (px / A, 1 - py / A)
 

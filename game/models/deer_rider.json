@@ -2,9 +2,9 @@
  "name": "deer_rider",
  "atlas": 512,
  "seed": 71,
- "height": 3.5542724765837193,
+ "height": 3.5560360178351402,
  "top": 3.605121374130249,
- "bottom": 0.05084889754652977,
+ "bottom": 0.049085356295108795,
  "layout": {
   "hide": [
    0,
@@ -139,7 +139,7 @@
  },
  "kind": "quadruped",
  "gait": "default",
- "tris": 3377,
+ "tris": 4931,
  "bones": [
   "body",
   "neck",
