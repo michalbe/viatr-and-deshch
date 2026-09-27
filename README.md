@@ -6,16 +6,9 @@ gather **Rain**, and both raise a village and a warband to destroy the rival cla
 
 Built for the [404 game jam](https://game.404.xyz) with the [404 game recipe](https://github.com/404-Repo/404-game-recipe):
 every 3D object in the game is Three.js code (`game/assets/*.js`). The look is early-2000s AAA RTS
-(Warcraft III, classic WoW): low-poly models with hand-painted diffuse textures that are drawn onto
-canvases at load time by `game/paint.js`, so there are no image files.
+(Warcraft III, classic WoW): low-poly lofted models with hand-painted diffuse textures that are
+drawn onto canvases at load time by `game/paint.js`, so there are still no image files.
 
-Characters go one step further, the way Warcraft III did it: each is **one welded low-poly mesh with
-a skeleton and keyframed clips** (idle, fidgets, walk, attack, death, and the dance / rite / build
-where they apply), built headlessly in Blender by `tools/wc3/` and shipped as `game/models/*.glb`.
-The atlas is still painted in code (`game/skins/*.js`), baked ambient occlusion and the clan-colour
-mask ride in the vertex colour, and `three`'s `AnimationMixer` plays the clips. Rebuild with
-`/Applications/Blender.app/Contents/MacOS/Blender -b -P tools/wc3/build.py -- vitez vietra`.
-A character without a GLB falls back to its code-built, procedurally animated asset.
 
 **Play:** open `game/index.html` from any static host (it needs no build step). The title offers the
 five-mission **Campaign** (with checkpoints, difficulties and the Dola choices) and a **Skirmish** on the

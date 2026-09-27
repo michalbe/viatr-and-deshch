@@ -6,7 +6,6 @@
  *  shoulder.x < 0 swings the arm forward/up; lShoulder.z > 0 / rShoulder.z < 0 raise sideways.
  *  hip.x < 0 swings the thigh forward; knee.x > 0 bends the shin back; elbow.x < 0 bends forward.
  */
-import * as THREE from 'three';
 const sin = Math.sin, cos = Math.cos, max = Math.max, PI = Math.PI;
 
 function setJ(u, name, x = 0, y = 0, z = 0) {
@@ -297,54 +296,9 @@ function quadruped(u, dt) {
   }
 }
 
-/* ------------------------------------------------------------------ rigged GLB characters */
-function fadeTo(m, name, dur, oneShot = false) {
-  const next = m.actions[name];
-  if (!next) return null;
-  if (m.cur === name && !oneShot) return next;
-  const prev = m.cur ? m.actions[m.cur] : null;
-  if (oneShot) { next.reset(); next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished = true; }
-  else { next.setLoop(THREE.LoopRepeat, Infinity); next.clampWhenFinished = false; }
-  next.enabled = true; next.setEffectiveTimeScale(next.timeScale || 1); next.setEffectiveWeight(1);
-  if (prev && prev !== next) { next.play(); prev.crossFadeTo(next, dur, false); }
-  else next.play();
-  m.cur = name;
-  return next;
-}
-function animateGltf(u, dt) {
-  const m = u.model, a = u.anim;
-  let mode = a.mode;
-  if (mode === 'rest') { m.mixer.stopAllAction(); m.cur = null; m.inst.rotation.y = 0; return; }
-  if (!m.actions[mode] && mode !== 'idle') mode = 'idle';
-  if (mode === 'attack') {
-    // every swing restarts the clip, stretched to the unit's cooldown-derived duration
-    if (m.cur !== 'attack' || a.attackT < (m.lastAttackT ?? 0)) {
-      const act = m.actions.attack; act.timeScale = act.getClip().duration / max(0.25, a.attackDur);
-      fadeTo(m, 'attack', 0.06, true);
-    }
-    m.lastAttackT = a.attackT;
-    if (a.attackT >= a.attackDur && !m.actions.attack.isRunning()) fadeTo(m, 'idle', 0.2);
-  } else if (mode === 'walk') {
-    const act = m.actions.walk; act.timeScale = max(0.25, u.speedNow / (u.def?.speed || 3));
-    fadeTo(m, 'walk', 0.14);
-  } else if (mode === 'idle') {
-    const inFidget = m.cur && m.cur.startsWith('fidget');
-    if (inFidget && !m.actions[m.cur].isRunning()) fadeTo(m, 'idle', 0.35);
-    else if (!inFidget) fadeTo(m, 'idle', 0.25);
-    if (m.cur === 'idle' && m.actions.fidget1) {
-      m.fidgetT -= dt;
-      if (m.fidgetT <= 0) { m.fidgetT = 5 + Math.random() * 7; fadeTo(m, 'fidget' + (1 + Math.floor(Math.random() * 3)), 0.3, true); }
-    }
-  } else fadeTo(m, mode, 0.2);
-  m.mixer.update(dt);
-  if (a.mode === 'dance') m.inst.rotation.y += dt * 1.25;
-  else m.inst.rotation.y += (0 - m.inst.rotation.y) * Math.min(1, dt * 6);
-}
-
 /** called every frame for every living unit */
 export function animate(u, dt) {
   const a = u.anim;
-  if (u.model.gltf) { a.t += dt; if (a.attackT < a.attackDur) a.attackT += dt; return animateGltf(u, dt); }
   a.t += dt;
   if (a.attackT < a.attackDur) a.attackT += dt;
   const inst = u.model.inst, r = u.model.rest.__inst;
@@ -359,13 +313,6 @@ export function animate(u, dt) {
 export function animateDeath(u, dt) {
   const inst = u.model.inst;
   u.deadT += dt;
-  if (u.model.gltf) {
-    const m = u.model;
-    if (m.cur !== 'death') { if (m.actions.death) fadeTo(m, 'death', 0.1, true); else { m.mixer.stopAllAction(); m.cur = 'death'; } }
-    m.mixer.update(dt);
-    if (u.deadT > 4) inst.position.y -= dt * 0.35;
-    return;
-  }
   const k = Math.min(1, u.deadT / 0.7);
   inst.rotation.x = -ease(k) * PI / 2 * (u.model.joints.body ? 0 : 1);
   inst.rotation.z = u.model.joints.body ? ease(k) * PI / 2 : 0;

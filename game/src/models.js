@@ -13,7 +13,6 @@
 import * as THREE from 'three';
 import { ASSET } from '../assetlib.js';
 import { TEAM_COLOR, TEAM_HEX_IN_ASSETS } from './config.js';
-import { hasGlb, makeGlbUnit } from './gltf-units.js';
 
 const url = (name) => `./assets/${name}.js`;
 
@@ -96,7 +95,6 @@ async function buildUnitTemplate(asset, team, height) {
  * root is a Group you position; joints are the named joints; rest holds their rest pose.
  */
 export async function makeUnitModel(asset, team, height) {
-  if (await hasGlb(asset)) return makeGlbUnit(asset, team, height);     // a Blender-built rigged mesh, when one exists
   const key = `${asset}|${team}|${height}`;
   if (!unitTemplates.has(key)) unitTemplates.set(key, buildUnitTemplate(asset, team, height));
   const tpl = await unitTemplates.get(key);
